@@ -1,35 +1,22 @@
-# AgroTrace – Mikroservisna platforma za praćenje proizvodnje i porekla domaćih proizvoda
+# Local Bite – Mikroservisna platforma za praćenje proizvodnje i porekla domaćih proizvoda
 
 ## Tip teme
 
-**Samostalno definisana tema** sa jasnim osloncem na mikroservisnu arhitekturu. Tema je pogodna i kao **predefinisana mikroservisna** jer ispunjava sve zahteve iz sekcije 1.1.2, ali se prijavljuje kao samostalno definisana kako bi se ostavio prostor za proširenja i diplomski rad.
+**Samostalno definisana tema** sa jasnim osloncem na mikroservisnu arhitekturu. Tema je pogodna i kao **predefinisana mikroservisna**, ali se prijavljuje kao samostalno definisana kako bi se ostavio prostor za proširenja i diplomski rad.
 
 ---
 
 ## 1. Uvod i motivacija
 
-Poljoprivredna gazdinstva koja proizvode domaće proizvode (mesne prerađevine, ajvar, sokovi, pekmezi) često nemaju digitalni sistem za praćenje porekla sirovina, procesa proizvodnje i prodaje. Potrošači sve češće žele transparentnost: odakle proizvod dolazi, kako je proizveden i da li je zaista domaći.
+Local Bite je koncipiran kao generička, skalabilna platforma za mala poljoprivredna gazdinstva i porodične proizvođače, sa ciljem da se lako prilagodi različitim tipovima proizvodnje (mesni proizvodi, prerađevine od voća i povrća, mlečni proizvodi, med i slično). Sistem nije vezan za jedno konkretno gazdinstvo, već je dizajniran da podrži veliki broj nezavisnih proizvođača u okviru jedne aplikacije.
 
-Cilj projekta **AgroTrace** je da omogući **digitalno praćenje celokupnog životnog ciklusa proizvoda**, od sirovine, preko procesa proizvodnje, do finalnog proizvoda i prodaje – uz mogućnost da krajnji korisnik skeniranjem QR koda vidi kompletnu istoriju proizvoda.
+Ideja za projekat proistekla je iz realne potrebe malih proizvođača koji nemaju digitalizovan sistem za praćenje porekla, sirovina i procesa proizvodnje. U praksi se većina evidencije vodi ručno, bez centralizovanog sistema koji povezuje sirovine, procese proizvodnje i finalne proizvode.
 
----
-
-## 2. Generalizacija sistema
-
-AgroTrace je od samog početka **projektovan kao generički sistem**, sposoban da podrži:
-
-* **Više gazdinstava (multi-tenant)** – svaki gazdinstvo ima izolovane podatke i sopstvene korisnike.  
-* **Različite tipove sirovina** – meso, voće, povrće, mlečni proizvodi, začini, itd.  
-* **Različite procese proizvodnje** – sušenje, dimljenje, fermentacija, kuvanje, pečenje, pasterizacija.  
-* **Različite tipove finalnih proizvoda** – kulen, kobasica, pečenica, slanina, ajvar, sokovi, pekmezi, sirupi.  
-* **Fleksibilne domenske modele** – entiteti `RawMaterial`, `ProcessStep` i `Product` su generički i mogu se proširivati dodavanjem novih polja bez promene osnovne arhitekture.  
-* **Event-driven ažuriranja** – promene u jednom servisu automatski se propagiraju u povezane servise, omogućavajući jednostavno dodavanje novih servisa ili funkcionalnosti.  
-
-Ova generalizacija znači da **isti sistem može da se primeni na različita gazdinstva** sa različitim vrstama proizvoda bez potrebe za pisanjem novog koda za svaki slučaj.
+Local Bite ima za cilj da digitalizuje ovaj proces i omogući praćenje kompletnog puta proizvoda – od sirovine, preko prerade, do finalnog proizvoda i prodaje – uz jasan fokus na transparentnost, doslednost i poverenje potrošača.
 
 ---
 
-## 3. Opis problema
+## 2. Opis problema
 
 Trenutni problemi u radu manjih gazdinstava:
 
@@ -38,15 +25,15 @@ Trenutni problemi u radu manjih gazdinstava:
 * Kupci nemaju uvid u poreklo i proces proizvodnje.
 * Teško je analizirati proizvodnju i prodaju kroz vreme.
 
-AgroTrace rešava ove probleme kroz **mikroservisnu arhitekturu** gde svaki deo sistema ima jasno definisanu odgovornost i **generalizovane entitete** koji se mogu primeniti na bilo koje gazdinstvo ili proizvod.
+Local Bite rešava ove probleme kroz **mikroservisnu arhitekturu** gde svaki deo sistema ima jasno definisanu odgovornost i **generalizovane entitete** koji se mogu primeniti na bilo koje gazdinstvo ili proizvod.
 
 ---
 
-## 4. Ciljevi projekta
+## 3. Ciljevi projekta
 
 U okviru projektnog zadatka biće implementirano:
 
-* Mikroservisna arhitektura sa najmanje 4 servisa (biće implementirano 5).  
+* Mikroservisna arhitektura sa 5 servisa (moguća dopuna po potrebi).  
 * Autentifikacija i autorizacija korisnika.  
 * CRUD operacije nad svim glavnim entitetima (`RawMaterial`, `ProcessStep`, `Product`, `Order`).  
 * Generisanje QR koda za finalne proizvode.  
@@ -56,6 +43,32 @@ U okviru projektnog zadatka biće implementirano:
 Sve funkcionalnosti biće demonstrirane kroz jednostavan frontend interfejs.
 
 ---
+## 4. Generalizacija sistema i izolacija podataka
+
+Local Bite je od samog početka projektovan kao generički i proširiv sistem, sposoban da podrži širok spektar malih gazdinstava i lokalnih proizvođača hrane, bez potrebe za prilagođavanjem koda za svaki pojedinačni slučaj.
+
+Sistem podržava:
+
+- Više gazdinstava (multi-tenant arhitektura) – svako gazdinstvo ima potpuno izolovane podatke i sopstvene korisnike.
+- Različite tipove sirovina – meso, voće, povrće, mlečni proizvodi, začini, itd.
+- Različite procese proizvodnje – sušenje, dimljenje, fermentacija, kuvanje, pečenje, pasterizacija.
+- Različite tipove finalnih proizvoda – kulen, kobasica, pečenica, slanina, ajvar, sokovi, pekmezi, sirupi.
+- Fleksibilne domenske modele – entiteti RawMaterial, ProcessStep i Product su generički i mogu se proširivati dodavanjem novih polja bez promene osnovne arhitekture.
+
+Ova generalizacija omogućava da isti sistem može da koristi veliki broj različitih gazdinstava sa potpuno različitim proizvodnim programima, uz zadržavanje iste arhitekture i logike.
+
+### Izolacija podataka i uloge
+
+Sistem je dizajniran kao multi-tenant platforma sa striktnom izolacijom podataka. Svaki korisnik tipa FARM_OWNER (vlasnik gazdinstva) i WORKER (radnik) je vezan za tačno jedno gazdinstvo, dok svi entiteti vezani za proizvodnju (sirovine, procesi, proizvodi, porudžbine) sadrže farm_id.
+
+Na osnovu identiteta korisnika i njegove uloge:
+- FARM_OWNER i WORKER mogu pristupati isključivo podacima svog gazdinstva.
+- CUSTOMER ima pristup javno dostupnim informacijama svih gazdinstava (npr. pregled proizvoda i porekla).
+- SYSTEM_ADMIN ima globalni uvid u podatke svih gazdinstava.
+
+Filtriranje po farm_id se sprovodi na nivou svakog upita prema bazi, čime se garantuje potpuna izolacija podataka i sprečava bilo kakvo mešanje informacija između različitih proizvođača.
+
+Ovakav pristup omogućava da Local Bite funkcioniše kao jedinstvena platforma za veliki broj nezavisnih proizvođača, uz visok nivo bezbednosti, privatnosti i skalabilnosti.
 
 ## 5. Arhitektura sistema
 
@@ -70,9 +83,6 @@ Glavne komponente:
 * Production Service  
 * Product Service  
 * Orders Service  
-
-> **Napomena:** Napredni design patterni (Strategy, Factory, Builder, Observer, CQRS) biće implementirani u okviru diplomskog rada za dodatnu fleksibilnost i skalabilnost sistema.
-
 ---
 
 ### 5.2 Servisi
@@ -85,9 +95,11 @@ Funkcionalnosti:
 * Registracija korisnika  
 * Prijava (login)  
 * JWT tokeni  
-* Uloge: admin (gazdinstvo), radnik, kupac  
-
-Baza: PostgreSQL
+* Uloge:
+  - SYSTEM_ADMIN – administrator platforme
+  - FARM_OWNER – vlasnik gazdinstva
+  - WORKER – zaposleni
+  - CUSTOMER – krajnji korisnik
 
 ---
 
@@ -96,7 +108,6 @@ Baza: PostgreSQL
 
 Polja i entiteti su **generički**, što omogućava lako dodavanje novih tipova sirovina bez menjanja koda.
 
-Baza: PostgreSQL
 
 ---
 
@@ -104,7 +115,6 @@ Baza: PostgreSQL
 **Odgovornost:** praćenje procesa obrade sirovina.  
 Svaki proces je **generički entitet**, sa poljima za tip procesa, datum, korišćene sirovine i opis.
 
-Baza: PostgreSQL
 
 ---
 
@@ -112,15 +122,13 @@ Baza: PostgreSQL
 **Odgovornost:** upravljanje finalnim proizvodima.  
 Polja i entiteti su **generički**, omogućavajući dodavanje novih tipova proizvoda (meso, sokovi, pekmezi, sirupi, itd.) bez izmene osnovne arhitekture.
 
-Baza: PostgreSQL
 
 ---
 
 #### 5.2.5 Orders Service (Porudžbine)
 **Odgovornost:** evidencija porudžbina i kupaca.  
-Omogućava multi-gazdinstvenu podršku i povezivanje sa Product Service-om.
+Omogućava podršku za više gazdinstava i povezivanje sa Product Service-om.
 
-Baza: PostgreSQL
 
 ---
 
@@ -137,13 +145,13 @@ Baza: PostgreSQL
 
 ### Backend
 * Rust (svi mikroservisi)  
-* Framework: Actix-web ili Axum
+* Framework: Axum
 
 ### Baze podataka
 * PostgreSQL
 
 ### Frontend
-* React ili jednostavan HTML/CSS/JS interfejs
+* Angular
 
 ### Dodatno
 * Biblioteka za generisanje QR koda  
@@ -152,20 +160,17 @@ Baza: PostgreSQL
 
 ---
 
-## 8. Plan realizacije (1 mesec)
+## 8. Dodatno za diplomski rad
 
-*(isto kao ranije)*
-
----
-
-## 9. Vizija za diplomski rad (proširenja u narednih 6 meseci)
-
-U okviru diplomskog rada sistem će biti proširen sledećim funkcionalnostima:
+U okviru diplomskog rada sistem će biti proširen keim od sledećih funkcionalnosti:
 
 * Design patterni i arhitektura - Strategy, Factory, Builder – fleksibilnost i generalizacija proizvoda i procesa, Observer / Event pattern – event-driven komunikacija između servisa, CQRS – razdvajanje upisa i čitanja podataka za skalabilnost
 * AI modul (Python) za predikciju potražnje i optimizaciju proizvodnje,
-* asinhrona komunikacija između servisa (message broker),
-* mobilna aplikacija za skeniranje QR koda,
-* generisanje PDF sertifikata o poreklu
+* Asinhrona komunikacija između servisa (message broker),
+* Mobilna aplikacija za skeniranje QR koda,
+* Generisanje PDF sertifikata o poreklu
 
+---
+### 9. Zaključak
 
+Local Bite predstavlja realan i praktičan sistem koji rešava konkretan problem iz domena poljoprivrede i proizvodnje hrane. Projekat je pažljivo definisan tako da bude izvodljiv u okviru projektnog zadatka, ali i dovoljno širok da se prirodno proširi u diplomski rad.
