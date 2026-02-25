@@ -18,4 +18,18 @@ target
 #  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
 #  and can be added to the global gitignore or merged into this file.  For a more nuclear
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
-#.idea/
+.idea/
+
+# RustRover caches
+# These folders contain machine‑specific data and should NOT be versioned
+.idea/**/workspace.xml
+.idea/**/tasks.xml
+.idea/**/usage.statistics.xml
+.idea/**/dictionaries
+.idea/**/shelf/
+
+# Local run configurations
+.idea/**/runConfigurations/
+
+# Added by cargo
+/target
