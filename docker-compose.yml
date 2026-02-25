@@ -1,6 +1,17 @@
 version: "3.9"
 
 services:
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - auth-db
+
   auth-db:
     image: postgres:15
     container_name: auth-db
@@ -12,6 +23,12 @@ services:
       - "5432:5432"
     volumes:
       - auth_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U auth -d auth_db" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   auth-service:
     build:
@@ -25,7 +42,8 @@ services:
     ports:
       - "8080:8080"
     depends_on:
-      - auth-db
+      auth-db:
+        condition: service_healthy
 
 volumes:
   auth_db_data:

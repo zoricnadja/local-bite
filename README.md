@@ -59,12 +59,12 @@ Ova generalizacija omogućava da isti sistem može da koristi veliki broj razli�
 
 ### Izolacija podataka i uloge
 
-Sistem je dizajniran kao multi-tenant platforma sa striktnom izolacijom podataka. Svaki korisnik tipa FARM_OWNER (vlasnik gazdinstva) i WORKER (radnik) je vezan za tačno jedno gazdinstvo, dok svi entiteti vezani za proizvodnju (sirovine, procesi, proizvodi, porudžbine) sadrže farm_id.
+Sistem je dizajniran kao multi-tenant platforma sa striktnom izolacijom podataka. Svaki korisnik tipa FarmOwner (vlasnik gazdinstva) i WORKER (radnik) je vezan za tačno jedno gazdinstvo, dok svi entiteti vezani za proizvodnju (sirovine, procesi, proizvodi, porudžbine) sadrže farm_id.
 
 Na osnovu identiteta korisnika i njegove uloge:
-- FARM_OWNER i WORKER mogu pristupati isključivo podacima svog gazdinstva.
+- FarmOwner i WORKER mogu pristupati isključivo podacima svog gazdinstva.
 - CUSTOMER ima pristup javno dostupnim informacijama svih gazdinstava (npr. pregled proizvoda i porekla).
-- SYSTEM_ADMIN ima globalni uvid u podatke svih gazdinstava.
+- SystemAdmin ima globalni uvid u podatke svih gazdinstava.
 
 Filtriranje po farm_id se sprovodi na nivou svakog upita prema bazi, čime se garantuje potpuna izolacija podataka i sprečava bilo kakvo mešanje informacija između različitih proizvođača.
 
@@ -96,8 +96,8 @@ Funkcionalnosti:
 * Prijava (login)  
 * JWT tokeni  
 * Uloge:
-  - SYSTEM_ADMIN – administrator platforme
-  - FARM_OWNER – vlasnik gazdinstva
+  - SystemAdmin – administrator platforme
+  - FarmOwner – vlasnik gazdinstva
   - WORKER – zaposleni
   - CUSTOMER – krajnji korisnik
 
