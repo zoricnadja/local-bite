@@ -1,30 +1,27 @@
-version: "3.9"
-
 services:
   pgadmin:
     image: dpage/pgadmin4
     container_name: pgadmin
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@admin.com
-      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
     ports:
       - "5050:80"
     depends_on:
       - auth-db
+      - raw-materials-db
 
   auth-db:
     image: postgres:15
     container_name: auth-db
     environment:
-      POSTGRES_USER: auth
-      POSTGRES_PASSWORD: auth
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: auth_db
-    ports:
-      - "5432:5432"
     volumes:
       - auth_db_data:/var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U auth -d auth_db" ]
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d auth_db" ]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -36,14 +33,48 @@ services:
       dockerfile: services/auth/Dockerfile
     container_name: auth-service
     environment:
-      DATABASE_URL: postgres://auth:auth@auth-db:5432/auth_db
-      JWT_SECRET: super_secret_key
-      RUST_LOG: info
+      DATABASE_URL: ${AUTH_DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      RUST_LOG: ${AUTH_RUST_LOG}
+      PORT: ${AUTH_PORT}
     ports:
-      - "8080:8080"
+      - ${AUTH_PORT}:${AUTH_PORT}
     depends_on:
       auth-db:
         condition: service_healthy
 
+  raw-materials-db:
+    image: postgres:15
+    container_name: raw-materials-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: raw_materials_db
+    volumes:
+      - raw_materials_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d raw_materials_db" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  raw-materials-service:
+    build:
+      context: .
+      dockerfile: services/raw-materials/Dockerfile
+    container_name: raw-materials-service
+    environment:
+      DATABASE_URL: ${RAW_MATERIALS_DATABASE_URL}
+      JWT_SECRET: super_secret_key
+      RUST_LOG: "raw-materials=debug"
+      PORT: ${RAW_MATERIALS_PORT}
+    ports:
+      - ${RAW_MATERIALS_PORT}:${RAW_MATERIALS_PORT}
+    depends_on:
+      raw-materials-db:
+        condition: service_healthy
+
 volumes:
   auth_db_data:
+  raw_materials_db_data:
