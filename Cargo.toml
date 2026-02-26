@@ -1,7 +1,11 @@
 [workspace]
 members = [
     "services/auth",
-    "libs/common"
+    "libs/common",
+    "services/raw-materials",
+    "services/productions",
+    "services/products",
+    "services/orders"
 ]
 resolver = "2"
 
@@ -17,7 +21,7 @@ jsonwebtoken = { version = "9" }
 argon2 = "0.5"
 thiserror = "2.0.18"
 tracing = "0.1"
-tracing-subscriber = "0.3"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 common = { path = "libs/common" }
 chrono = { version = "0.4.44", features = ["serde"] }
 anyhow = "1.0.102"
@@ -25,4 +29,5 @@ rand = "0.8.5"
 hyper = "1.8.1"
 tower-http = { version = "0.5", features = ["cors"] }
 http = "1.4.0"
+
 

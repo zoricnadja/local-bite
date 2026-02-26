@@ -7,6 +7,7 @@ pub struct Claims {
     pub sub: Uuid,
     pub email: String,
     pub role: String,
+    pub farm_id: Option<Uuid>,
     pub exp: usize,
     pub iat: usize,
 }

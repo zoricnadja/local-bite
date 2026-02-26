@@ -2,3 +2,4 @@ pub mod errors;
 pub mod jwt;
 pub mod response;
 pub mod models;
+pub mod middleware;
