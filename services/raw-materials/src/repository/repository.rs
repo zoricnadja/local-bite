@@ -3,13 +3,21 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use common::errors::{AppError, AppResult};
-use crate::models::models::{ListQuery, RawMaterial};
+use crate::models::query::ListQuery;
+use crate::models::raw_material::RawMaterial;
 
-pub struct RawMaterialRepository;
+#[derive(Clone)]
+pub struct RawMaterialRepository {
+    pub pool: PgPool,
+}
 
 impl RawMaterialRepository {
+    pub fn new(pool: PgPool) -> Self {
+        Self { pool }
+    }
+
     pub async fn find_all(
-        pool: &PgPool,
+        &self,
         farm_id: Uuid,
         q: &ListQuery,
     ) -> AppResult<(Vec<RawMaterial>, i64)> {
@@ -34,7 +42,7 @@ impl RawMaterialRepository {
             "#,
             farm_id, type_filter, search_filter, limit, offset
         )
-            .fetch_all(pool)
+            .fetch_all(&self.pool)
             .await?;
 
         let total: i64 = sqlx::query_scalar!(
@@ -46,7 +54,7 @@ impl RawMaterialRepository {
             "#,
             farm_id, type_filter, search_filter
         )
-            .fetch_one(pool)
+            .fetch_one(&self.pool)
             .await?
             .unwrap_or(0);
 
@@ -54,7 +62,7 @@ impl RawMaterialRepository {
     }
 
     pub async fn find_by_id(
-        pool: &PgPool,
+        &self,
         id: Uuid,
         farm_id: Uuid,
     ) -> AppResult<RawMaterial> {
@@ -69,13 +77,13 @@ impl RawMaterialRepository {
             "#,
             id, farm_id
         )
-            .fetch_optional(pool)
+            .fetch_optional(&self.pool)
             .await?
             .ok_or_else(|| AppError::NotFound(format!("Raw material {} not found", id)))
     }
 
     pub async fn insert(
-        pool: &PgPool,
+        &self,
         id: Uuid,
         farm_id: Uuid,
         name: &str,
@@ -103,14 +111,14 @@ impl RawMaterialRepository {
             id, farm_id, name, material_type, quantity, unit,
             supplier, origin, harvest_date, expiry_date, notes, low_stock_threshold,
         )
-            .fetch_one(pool)
+            .fetch_one(&self.pool)
             .await?;
 
         Ok(material)
     }
 
     pub async fn update(
-        pool: &PgPool,
+        &self,
         id: Uuid,
         farm_id: Uuid,
         name: &str,
@@ -147,25 +155,25 @@ impl RawMaterialRepository {
             supplier, origin, harvest_date, expiry_date,
             notes, low_stock_threshold, id, farm_id
         )
-            .fetch_one(pool)
+            .fetch_one(&self.pool)
             .await?;
 
         Ok(updated)
     }
 
-    pub async fn soft_delete(pool: &PgPool, id: Uuid, farm_id: Uuid) -> AppResult<u64> {
+    pub async fn soft_delete(&self, id: Uuid, farm_id: Uuid) -> AppResult<u64> {
         let rows = sqlx::query!(
             "UPDATE raw_materials SET is_deleted = TRUE WHERE id = $1 AND farm_id = $2 AND is_deleted = FALSE",
             id, farm_id
         )
-            .execute(pool)
+            .execute(&self.pool)
             .await?
             .rows_affected();
 
         Ok(rows)
     }
 
-    pub async fn find_low_stock(pool: &PgPool, farm_id: Uuid) -> AppResult<Vec<RawMaterial>> {
+    pub async fn find_low_stock(&self, farm_id: Uuid) -> AppResult<Vec<RawMaterial>> {
         let items = sqlx::query_as!(
             RawMaterial,
             r#"
@@ -181,14 +189,14 @@ impl RawMaterialRepository {
             "#,
             farm_id
         )
-            .fetch_all(pool)
+            .fetch_all(&self.pool)
             .await?;
 
         Ok(items)
     }
 
     pub async fn adjust_quantity(
-        pool: &PgPool,
+        &self,
         id: Uuid,
         farm_id: Uuid,
         delta: BigDecimal,
@@ -208,7 +216,7 @@ impl RawMaterialRepository {
             "#,
             delta, id, farm_id
         )
-            .fetch_optional(pool)
+            .fetch_optional(&self.pool)
             .await?;
 
         Ok(result)

@@ -8,6 +8,7 @@ mod repository;
 mod service;
 mod db;
 mod routes;
+mod dtos;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

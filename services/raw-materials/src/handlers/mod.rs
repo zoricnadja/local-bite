@@ -1,1 +1,1 @@
-pub(crate) mod materials;
+pub mod materials;
