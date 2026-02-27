@@ -10,11 +10,11 @@ members = [
 resolver = "2"
 
 [workspace.dependencies]
-axum = { version = "0.8.8", features = ["macros"] }
+axum = { version = "0.8.8", features = ["macros", "multipart"] }
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-sqlx = { version = "0.8.6", features = ["runtime-tokio-rustls", "postgres", "uuid", "chrono", "macros"] }
+sqlx = { version = "0.8.6", features = ["runtime-tokio-rustls", "postgres", "uuid", "chrono", "macros", "bigdecimal"] }
 dotenvy = "0.15"
 uuid = { version = "1", features = ["v4", "serde"] }
 jsonwebtoken = { version = "9" }
@@ -27,7 +27,8 @@ chrono = { version = "0.4.44", features = ["serde"] }
 anyhow = "1.0.102"
 rand = "0.8.5"
 hyper = "1.8.1"
-tower-http = { version = "0.5", features = ["cors"] }
+tower-http = { version = "0.5", features = ["cors", "trace", "fs"] }
 http = "1.4.0"
+bigdecimal = { version = "0.4.10", features = ["serde"] }
 
 
