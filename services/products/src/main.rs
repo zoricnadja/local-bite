@@ -3,11 +3,12 @@ use tower_http::cors::CorsLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 mod routes;
 mod db;
-mod service;
-mod repository;
+mod services;
+mod repositories;
 mod handlers;
 mod models;
 mod dtos;
+mod utils;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

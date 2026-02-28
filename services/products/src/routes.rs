@@ -5,30 +5,30 @@ use axum::{
 use sqlx::PgPool;
 use tower_http::services::ServeDir;
 
-use crate::handlers::{products, public, qr, upload};
+use crate::handlers::{products_handler, public_handler, qr_handler, image_handler};
 
 pub fn product_routes(pool: PgPool) -> Router {
     Router::new()
         // Public QR scan endpoint — no auth (must be before /:id to avoid conflict)
-        .route("/public/:qr_token",         get(public::scan))
+        .route("/public/:qr_token",         get(public_handler::scan))
 
         // Collection
-        .route("/",                          get(products::list).post(products::create))
+        .route("/",                          get(products_handler::list).post(products_handler::create))
 
         // Single product CRUD
-        .route("/:id",                       get(products::get_one)
-            .put(products::update)
-            .delete(products::delete))
+        .route("/:id",                       get(products_handler::get_one)
+            .put(products_handler::update)
+            .delete(products_handler::delete))
 
         // Provenance chain
-        .route("/:id/provenance",            get(products::provenance))
+        .route("/:id/provenance",            get(products_handler::provenance))
 
         // Image upload
-        .route("/:id/image",                 post(upload::upload_image))
+        .route("/:id/image",                 post(image_handler::upload_image))
 
         // QR code
-        .route("/:id/qr",                    get(qr::get_qr))
-        .route("/:id/qr/regenerate",         post(qr::regenerate_qr))
+        .route("/:id/qr",                    get(qr_handler::get_qr))
+        .route("/:id/qr/regenerate",         post(qr_handler::regenerate_qr))
 
         .with_state(pool)
 }
