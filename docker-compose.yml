@@ -120,7 +120,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: productions_db
     ports:
-      - "5434:5432"
+      - "5435:5432"
     volumes:
       - productions_db_data:/var/lib/postgresql/data
     healthcheck:
