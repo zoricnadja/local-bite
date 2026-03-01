@@ -1,37 +1,44 @@
-use sqlx::PgPool;
+use std::sync::Arc;
 use uuid::Uuid;
 
 use common::errors::{AppError, AppResult};
 use crate::models::product::Product;
-use crate::repositories::product_repository as repo;
+use crate::repositories::product_repository::ProductRepository;
 use crate::utils::image_utils;
 
-fn uploads_dir() -> String {
-    std::env::var("UPLOADS_DIR").unwrap_or_else(|_| "./uploads".into())
+#[derive(Clone)]
+pub struct ImageService {
+    pub product_repository: Arc<ProductRepository>,
+    uploads_dir: String,
 }
 
-pub async fn upload(
-    pool: &PgPool,
-    id: Uuid,
-    farm_id: Uuid,
-    bytes: Vec<u8>,
-    mime_type: &str,
-) -> AppResult<Product> {
-    if !image_utils::is_allowed_mime(mime_type) {
-        return Err(AppError::BadRequest(
-            "Only JPEG, PNG and WebP images are allowed".into(),
-        ));
+impl ImageService {
+    pub fn new(product_repository: Arc<ProductRepository>, uploads_dir: String) -> Self {
+        Self { product_repository, uploads_dir }
     }
 
-    let existing = repo::find_by_id_and_farm(pool, id, farm_id).await?;
-    let dir = uploads_dir();
+    pub async fn upload(
+        &self,
+        id: Uuid,
+        farm_id: Uuid,
+        bytes: Vec<u8>,
+        mime_type: &str,
+    ) -> AppResult<Product> {
+        if !image_utils::is_allowed_mime(mime_type) {
+            return Err(AppError::BadRequest(
+                "Only JPEG, PNG and WebP images are allowed".into(),
+            ));
+        }
 
-    if let Some(old_path) = &existing.image_path {
-        image_utils::delete_image(old_path, &dir);
+        let existing = self.product_repository.find_by_id_and_farm(id, farm_id).await?;
+
+        if let Some(old_path) = &existing.image_path {
+            image_utils::delete_image(old_path, &self.uploads_dir);
+        }
+
+        let relative_path = image_utils::save_image(&bytes, &self.uploads_dir)
+            .map_err(|e| AppError::BadRequest(e.to_string()))?;
+
+        self.product_repository.set_image_path(id, farm_id, &relative_path).await
     }
-
-    let relative_path = image_utils::save_image(&bytes, &dir)
-        .map_err(|e| AppError::BadRequest(e.to_string()))?;
-
-    repo::set_image_path(pool, id, farm_id, &relative_path).await
 }

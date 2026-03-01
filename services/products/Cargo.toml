@@ -10,18 +10,14 @@ serde = { workspace = true }
 sqlx = { workspace = true }
 dotenvy = { workspace = true }
 uuid = { workspace = true }
-jsonwebtoken = { workspace = true }
-argon2 = { workspace = true }
 tracing = { workspace = true }
 chrono = { workspace = true }
 anyhow = { workspace = true }
 common = { workspace = true }
-rand = { workspace = true }
 tower-http = {workspace = true}
-http = { workspace = true }
 tracing-subscriber = { workspace = true }
 bigdecimal = { workspace = true }
-image = "0.25.9"
-qrcode = "0.14.1"
+image = { version = "0.25.9", default-features = false, features = ["png", "jpeg"] }
+qrcode = { version = "0.14.1", features = ["image"] }
 tokio-util = { version = "0.7", features = ["io"] }
-reqwest = { version = "0.13.2", features = ["json"] }
+reqwest = { workspace = true }

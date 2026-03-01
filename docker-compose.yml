@@ -112,38 +112,38 @@ services:
       products-db:
         condition: service_healthy
 
-  productions-db:
-    image: postgres:15
-    container_name: productions-db
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: productions_db
-    ports:
-      - "5435:5432"
-    volumes:
-      - productions_db_data:/var/lib/postgresql/data
-    healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres -d productions_db" ]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-
-  productions-service:
-    build:
-      context: .
-      dockerfile: services/productions/Dockerfile
-    container_name: productions-service
-    environment:
-      DATABASE_URL: ${PRODUCTIONS_DATABASE_URL}
-      RUST_LOG: ${PRODUCTIONS_RUST_LOG}
-      PORT: ${PRODUCTIONS_PORT}
-    ports:
-      - ${PRODUCTIONS_PORT}:${PRODUCTIONS_PORT}
-    depends_on:
-      productions-db:
-        condition: service_healthy
+#  productions-db:
+#    image: postgres:15
+#    container_name: productions-db
+#    environment:
+#      POSTGRES_USER: ${POSTGRES_USER}
+#      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+#      POSTGRES_DB: productions_db
+#    ports:
+#      - "5435:5432"
+#    volumes:
+#      - productions_db_data:/var/lib/postgresql/data
+#    healthcheck:
+#      test: [ "CMD-SHELL", "pg_isready -U postgres -d productions_db" ]
+#      interval: 5s
+#      timeout: 5s
+#      retries: 5
+#      start_period: 10s
+#
+#  productions-service:
+#    build:
+#      context: .
+#      dockerfile: services/productions/Dockerfile
+#    container_name: productions-service
+#    environment:
+#      DATABASE_URL: ${PRODUCTIONS_DATABASE_URL}
+#      RUST_LOG: ${PRODUCTIONS_RUST_LOG}
+#      PORT: ${PRODUCTIONS_PORT}
+#    ports:
+#      - ${PRODUCTIONS_PORT}:${PRODUCTIONS_PORT}
+#    depends_on:
+#      productions-db:
+#        condition: service_healthy
 
 volumes:
   auth_db_data:

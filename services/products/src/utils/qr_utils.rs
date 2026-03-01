@@ -1,5 +1,5 @@
 use anyhow::Context;
-use image::{ImageBuffer, Luma};
+use image::Luma;
 use qrcode::QrCode;
 use std::path::{Path, PathBuf};
 use uuid::Uuid;

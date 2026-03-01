@@ -2,12 +2,11 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use sqlx::PgPool;
 use tower_http::services::ServeDir;
 
 use crate::handlers::{products_handler, public_handler, qr_handler, image_handler};
 
-pub fn product_routes(pool: PgPool) -> Router {
+pub fn product_routes() -> Router {
     Router::new()
         // Public QR scan endpoint — no auth (must be before /:id to avoid conflict)
         .route("/public/:qr_token",         get(public_handler::scan))
@@ -29,8 +28,6 @@ pub fn product_routes(pool: PgPool) -> Router {
         // QR code
         .route("/:id/qr",                    get(qr_handler::get_qr))
         .route("/:id/qr/regenerate",         post(qr_handler::regenerate_qr))
-
-        .with_state(pool)
 }
 
 /// Static file serving for uploaded images and QR PNGs.

@@ -1,27 +1,25 @@
-use axum::{
-    extract::{Multipart, Path, State},
-    response::Response,
-};
-use sqlx::PgPool;
+use axum::{debug_handler, extract::{Multipart, Path}, response::Response, Extension};
+use std::sync::Arc;
 use uuid::Uuid;
 
+use crate::services::image_service::ImageService;
 use common::{
     errors::{AppError, AppResult},
     middleware::{require_farm, require_role, AuthClaims},
     response::ok,
 };
-use crate::services::image_service;
 
 // ── POST /products/:id/image ──────────────────────────────────────────────────
 
+#[debug_handler]
 pub async fn upload_image(
-    AuthClaims(claims): AuthClaims,
-    Path(id): Path<Uuid>,
-    State(pool): State<PgPool>,
+    AuthClaims(_claims): AuthClaims,
+    Path(_id): Path<Uuid>,
+    Extension(_image_service): Extension<Arc<ImageService>>,
     mut multipart: Multipart,
 ) -> AppResult<Response> {
-    require_role(&claims, &["FARM_OWNER", "WORKER"])?;
-    let farm_id = require_farm(&claims)?;
+    require_role(&_claims, &["FARM_OWNER", "WORKER"])?;
+    let farm_id = require_farm(&_claims)?;
 
     let mut file_bytes: Option<Vec<u8>> = None;
     let mut mime_type = String::from("application/octet-stream");
@@ -50,6 +48,6 @@ pub async fn upload_image(
     let bytes = file_bytes
         .ok_or_else(|| AppError::BadRequest("No 'image' field found in form".into()))?;
 
-    let updated = image_service::upload(&pool, id, farm_id, bytes, &mime_type).await?;
+    let updated = _image_service.upload(_id, farm_id, bytes, &mime_type).await?;
     Ok(ok(updated))
 }

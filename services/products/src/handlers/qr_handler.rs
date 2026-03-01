@@ -1,32 +1,26 @@
-use axum::{
-    body::Body,
-    extract::{Path, State},
-    http::{header, StatusCode},
-    response::{IntoResponse, Response},
-};
-use sqlx::PgPool;
+use axum::{body::Body, extract::Path, http::{header, StatusCode}, response::{IntoResponse, Response}, Extension};
+use std::sync::Arc;
 use tokio::fs::File;
 use tokio_util::io::ReaderStream;
 use uuid::Uuid;
 
+use crate::services::qr_service::QrService;
 use common::{
     errors::{AppError, AppResult},
     middleware::{require_farm, require_role, AuthClaims},
     response::ok,
 };
-use crate::services::qr_service;
-
 // ── GET /products/:id/qr ──────────────────────────────────────────────────────
 
 pub async fn get_qr(
     AuthClaims(claims): AuthClaims,
     Path(id): Path<Uuid>,
-    State(pool): State<PgPool>,
+    Extension(_qr_service): Extension<Arc<QrService>>,
 ) -> AppResult<Response> {
     require_role(&claims, &["FARM_OWNER", "WORKER", "CUSTOMER", "SYSTEM_ADMIN"])?;
     let farm_id = require_farm(&claims)?;
 
-    let path = qr_service::get_qr_path(&pool, id, farm_id).await?;
+    let path = _qr_service.get_qr_path(id, farm_id).await?;
     serve_png_file(&path).await
 }
 
@@ -35,12 +29,12 @@ pub async fn get_qr(
 pub async fn regenerate_qr(
     AuthClaims(claims): AuthClaims,
     Path(id): Path<Uuid>,
-    State(pool): State<PgPool>,
+    Extension(_qr_service): Extension<Arc<QrService>>,
 ) -> AppResult<Response> {
     require_role(&claims, &["FARM_OWNER"])?;
     let farm_id = require_farm(&claims)?;
 
-    let updated = qr_service::regenerate(&pool, id, farm_id).await?;
+    let updated = _qr_service.regenerate(id, farm_id).await?;
     Ok(ok(updated))
 }
 

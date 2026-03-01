@@ -1,6 +1,20 @@
 [package]
 name = "productions"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
 
 [dependencies]
+axum = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }
+sqlx = { workspace = true }
+dotenvy = { workspace = true }
+uuid = { workspace = true }
+tracing = { workspace = true }
+chrono = { workspace = true }
+anyhow = { workspace = true }
+common = { workspace = true }
+tower-http = {workspace = true}
+tracing-subscriber = { workspace = true }
+bigdecimal = { workspace = true }
+reqwest = { workspace = true }
