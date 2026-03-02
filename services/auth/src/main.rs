@@ -18,7 +18,7 @@ use tower_http::cors::{CorsLayer, Any};
 use http::Method;
 use axum::middleware::from_fn;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-use crate::handlers::farms::{add_worker, create_farm};
+use crate::handlers::farms::{add_worker, create_farm, get_farm};
 use crate::middleware::auth_middleware::auth_middleware;
 
 #[tokio::main]
@@ -34,9 +34,9 @@ async fn main() -> anyhow::Result<()> {
 
     let pool = create_pool().await?;
     let user_repo = Arc::new(repository::repository::UserRepository::new(pool.clone()));
-    let auth_service = Arc::new(AuthService::new(user_repo, jwt_secret));
+    let auth_service = Arc::new(AuthService::new(user_repo, jwt_secret.clone()));
     let farm_repo = Arc::new(FarmRepository::new(pool));
-    let farm_service = Arc::new(FarmService::new(farm_repo));
+    let farm_service = Arc::new(FarmService::new(farm_repo, jwt_secret));
 
     let cors = CorsLayer::new()
         .allow_origin(Any)
@@ -46,6 +46,7 @@ async fn main() -> anyhow::Result<()> {
     let protected = Router::new()
         .route("/me", get(me))
         .route("/farms", post(create_farm))
+        .route("/farms/{id}", get(get_farm))
         .route("/farms/{id}/workers", post(add_worker))
         .route_layer(from_fn(auth_middleware));
 

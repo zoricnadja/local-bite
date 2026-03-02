@@ -4,6 +4,14 @@ use uuid::Uuid;
 use chrono::Utc;
 use common::errors::AppError;
 
+// Workers listing record (lightweight projection)
+#[derive(sqlx::FromRow, Clone)]
+pub struct WorkerRecord {
+    pub id: Uuid,
+    pub email: String,
+    pub farm_id: Uuid,
+}
+
 #[derive(Clone)]
 pub struct FarmRepository {
     pub pool: PgPool,
@@ -83,5 +91,27 @@ impl FarmRepository {
             owner_id,
             created_at: Utc::now().naive_utc(),
         }
+    }
+
+    pub async fn find_by_id(&self, id: Uuid) -> Result<Option<Farm>, AppError> {
+        let row = sqlx::query_as!(
+            Farm,
+            r#"SELECT id, name, owner_id, created_at FROM farms WHERE id = $1"#,
+            id
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(row)
+    }
+
+    pub async fn list_workers_by_farm(&self, farm_id: Uuid) -> Result<Vec<WorkerRecord>, AppError> {
+        let rows = sqlx::query_as!(
+            WorkerRecord,
+            r#"SELECT id, email, farm_id FROM users WHERE farm_id = $1 AND role = 'WORKER' ORDER BY email"#,
+            farm_id
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows)
     }
 }

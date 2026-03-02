@@ -43,6 +43,7 @@ impl AuthService {
             id,
             email: email.clone(),
             password_hash,
+            farm_id: None,
             role: role.clone(),
             created_at: Utc::now().naive_utc(),
         };
@@ -82,7 +83,7 @@ impl AuthService {
             sub: user.id,
             email: user.email,
             role: String::from(user.role.as_str()),
-            farm_id: None,
+            farm_id: user.farm_id,
             exp: (Utc::now().timestamp() + 3600) as usize,
             iat: 0,
         };

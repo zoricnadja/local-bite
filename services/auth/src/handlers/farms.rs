@@ -22,8 +22,8 @@ pub async fn create_farm(
     AuthClaims(claims): AuthClaims,
     Json(payload): Json<CreateFarmRequest>,
 ) -> Result<impl IntoResponse, AppError> {
-    let farm = farm_service.create_farm(&claims, payload).await?;
-    Ok(created(farm))
+    let result = farm_service.create_farm(&claims, payload).await?;
+    Ok(created(result))
 }
 
 // ── POST /farms/:id/workers ──────────────────────────────────────────────────
@@ -36,4 +36,15 @@ pub async fn add_worker(
 ) -> Result<impl IntoResponse, AppError> {
     let worker = farm_service.add_worker(&claims, farm_id, payload).await?;
     Ok(ok(worker))
+}
+
+// ── GET /farms/:id ───────────────────────────────────────────────────────────
+
+pub async fn get_farm(
+    Extension(farm_service): Extension<Arc<FarmService>>,
+    AuthClaims(claims): AuthClaims,
+    Path(farm_id): Path<Uuid>,
+) -> Result<impl IntoResponse, AppError> {
+    let farm = farm_service.get_farm(&claims, farm_id).await?;
+    Ok(ok(farm))
 }

@@ -2,6 +2,7 @@ use std::sync::Arc;
 use uuid::Uuid;
 use chrono::Utc;
 use argon2::{Argon2, password_hash::{SaltString, PasswordHasher}};
+use jsonwebtoken::{encode, EncodingKey, Header};
 
 use common::errors::AppError;
 use common::jwt::Claims;
@@ -14,12 +15,13 @@ use crate::repository::farm_repository::FarmRepository;
 #[derive(Clone)]
 pub struct FarmService {
     pub repo: Arc<FarmRepository>,
+    pub jwt_secret: String,
 }
 
 impl FarmService {
-    pub fn new(repo: Arc<FarmRepository>) -> Self { Self { repo } }
+    pub fn new(repo: Arc<FarmRepository>, jwt_secret: String) -> Self { Self { repo, jwt_secret } }
 
-    pub async fn create_farm(&self, claims: &Claims, payload: CreateFarmRequest) -> Result<Farm, AppError> {
+    pub async fn create_farm(&self, claims: &Claims, payload: CreateFarmRequest) -> Result<CreateFarmResult, AppError> {
         if claims.role != "FARM_OWNER" {
             return Err(AppError::Forbidden("Only FARM_OWNER can create a farm".into()));
         }
@@ -36,7 +38,23 @@ impl FarmService {
         tx.commit().await?;
 
         let farm = Farm { id: farm_id, name: payload.name, owner_id: claims.sub, created_at: Utc::now().naive_utc() };
-        Ok(farm)
+
+        // Issue a fresh JWT including the new farm_id
+        let new_claims = Claims {
+            sub: claims.sub,
+            email: claims.email.clone(),
+            role: claims.role.clone(),
+            farm_id: Some(farm_id),
+            exp: (Utc::now().timestamp() + 3600) as usize,
+            iat: Utc::now().timestamp() as usize,
+        };
+        let token = encode(
+            &Header::default(),
+            &new_claims,
+            &EncodingKey::from_secret(self.jwt_secret.as_bytes()),
+        )?;
+
+        Ok(CreateFarmResult { farm, token })
     }
 
     pub async fn add_worker(&self, claims: &Claims, farm_id: Uuid, payload: AddWorkerRequest) -> Result<WorkerOut, AppError> {
@@ -64,6 +82,25 @@ impl FarmService {
 
         Ok(WorkerOut { id: worker_id, email: payload.email, role: "WORKER".to_string(), farm_id })
     }
+
+    pub async fn get_farm(&self, claims: &Claims, farm_id: Uuid) -> Result<Farm, AppError> {
+        // Only allow accessing own farm for now (could be expanded to SYSTEM_ADMIN, etc.)
+        if claims.farm_id != Some(farm_id) {
+            return Err(AppError::Forbidden("You can only access your own farm".into()));
+        }
+        let farm = self
+            .repo
+            .find_by_id(farm_id)
+            .await?
+            .ok_or_else(|| AppError::NotFound("Farm not found".into()))?;
+        Ok(farm)
+    }
+}
+
+#[derive(serde::Serialize)]
+pub struct CreateFarmResult {
+    pub farm: Farm,
+    pub token: String,
 }
 
 #[derive(serde::Serialize)]
