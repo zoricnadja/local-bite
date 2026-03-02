@@ -6,6 +6,7 @@ use chrono::Utc;
 use common::errors::AppError;
 use common::jwt::Claims;
 use common::jwt::decode_jwt;
+use common::models::Role;
 use crate::models::user::User;
 use crate::repository::repository::UserRepository;
 use crate::dtos::login_request::LoginRequest;
@@ -22,7 +23,7 @@ impl AuthService {
         Self { user_repo, jwt_secret }
     }
 
-    pub async fn register_user(&self, payload: RegisterRequest) -> Result<(), AppError> {
+    pub async fn register_user(&self, payload: RegisterRequest) -> Result<String, AppError> {
         if self.user_repo.find_by_email(&payload.email).await?.is_some() {
             return Err(AppError::Conflict("Email already in use".into()));
         }
@@ -31,19 +32,39 @@ impl AuthService {
         let password_hash = Argon2::default()
             .hash_password(payload.password.as_bytes(), &salt)?
             .to_string();
+        let id = Uuid::new_v4();
+        let email = payload.email;
+        let role: Role = payload
+            .role
+            .unwrap_or_else(|| "CUSTOMER".to_string())
+            .parse()?;
 
         let user = User {
-            id: Uuid::new_v4(),
-            email: payload.email,
+            id,
+            email: email.clone(),
             password_hash,
-            role: payload.role
-                .unwrap_or_else(|| "CUSTOMER".to_string())
-                .parse()?,
+            role: role.clone(),
             created_at: Utc::now().naive_utc(),
         };
 
         self.user_repo.create_user(user).await?;
-        Ok(())
+
+        let claims = Claims {
+            sub: id,
+            email,
+            role: role.as_str().to_string(),
+            farm_id: None,
+            exp: (Utc::now().timestamp() + 3600) as usize,
+            iat: Utc::now().timestamp() as usize,
+        };
+
+        let token = encode(
+            &Header::default(),
+            &claims,
+            &EncodingKey::from_secret(self.jwt_secret.as_bytes()),
+        )?;
+
+        Ok(token)
     }
 
     pub async fn login(&self, payload: LoginRequest) -> Result<String, AppError> {
@@ -71,7 +92,7 @@ impl AuthService {
             &claims,
             &EncodingKey::from_secret(self.jwt_secret.as_bytes()),
         )?;
-
+        tracing::info!("Login token: {}", token);
         Ok(token)
     }
 

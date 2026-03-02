@@ -16,8 +16,8 @@ pub async fn register(
     Extension(_auth_service): Extension<Arc<AuthService>>,
     Json(payload): Json<RegisterRequest>,
 ) -> Result<impl IntoResponse, AppError> {
-    _auth_service.register_user(payload).await?;
-    Ok((StatusCode::CREATED, "User registered successfully"))
+    let token = _auth_service.register_user(payload).await?;
+    Ok((StatusCode::CREATED, Json(LoginResponse { token })))
 }
 
 #[debug_handler]
