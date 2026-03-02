@@ -197,7 +197,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     ports:
-      - "4200:4200"
+      - "4200"
     volumes:
       - ./frontend/src:/app/src
     environment:
