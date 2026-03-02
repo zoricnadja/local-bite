@@ -11,6 +11,7 @@ use crate::dtos::add_worker_request::AddWorkerRequest;
 use crate::dtos::create_farm_request::CreateFarmRequest;
 use crate::models::farms::Farm;
 use crate::repository::farm_repository::FarmRepository;
+use crate::repository::farm_repository::WorkerRecord;
 
 #[derive(Clone)]
 pub struct FarmService {
@@ -94,6 +95,18 @@ impl FarmService {
             .await?
             .ok_or_else(|| AppError::NotFound("Farm not found".into()))?;
         Ok(farm)
+    }
+
+    pub async fn list_workers(&self, claims: &Claims, farm_id: Uuid) -> Result<Vec<WorkerOut>, AppError> {
+        if claims.farm_id != Some(farm_id) {
+            return Err(AppError::Forbidden("You can only access your own farm".into()));
+        }
+        let rows: Vec<WorkerRecord> = self.repo.list_workers_by_farm(farm_id).await?;
+        let workers = rows
+            .into_iter()
+            .map(|r| WorkerOut { id: r.id, email: r.email, role: "WORKER".to_string(), farm_id: r.farm_id })
+            .collect();
+        Ok(workers)
     }
 }
 

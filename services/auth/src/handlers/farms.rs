@@ -48,3 +48,14 @@ pub async fn get_farm(
     let farm = farm_service.get_farm(&claims, farm_id).await?;
     Ok(ok(farm))
 }
+
+// ── GET /farms/:id/workers ───────────────────────────────────────────────────
+
+pub async fn list_workers(
+    Extension(farm_service): Extension<Arc<FarmService>>,
+    AuthClaims(claims): AuthClaims,
+    Path(farm_id): Path<Uuid>,
+) -> Result<impl IntoResponse, AppError> {
+    let workers = farm_service.list_workers(&claims, farm_id).await?;
+    Ok(ok(workers))
+}

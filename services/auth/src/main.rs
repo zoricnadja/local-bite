@@ -18,7 +18,7 @@ use tower_http::cors::{CorsLayer, Any};
 use http::Method;
 use axum::middleware::from_fn;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-use crate::handlers::farms::{add_worker, create_farm, get_farm};
+use crate::handlers::farms::{add_worker, create_farm, get_farm, list_workers};
 use crate::middleware::auth_middleware::auth_middleware;
 
 #[tokio::main]
@@ -48,6 +48,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/farms", post(create_farm))
         .route("/farms/{id}", get(get_farm))
         .route("/farms/{id}/workers", post(add_worker))
+        .route("/farms/{id}/workers", get(list_workers))
         .route_layer(from_fn(auth_middleware));
 
     let app = Router::new()

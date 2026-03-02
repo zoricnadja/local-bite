@@ -107,7 +107,7 @@ impl FarmRepository {
     pub async fn list_workers_by_farm(&self, farm_id: Uuid) -> Result<Vec<WorkerRecord>, AppError> {
         let rows = sqlx::query_as!(
             WorkerRecord,
-            r#"SELECT id, email, farm_id FROM users WHERE farm_id = $1 AND role = 'WORKER' ORDER BY email"#,
+            r#"SELECT id, email, farm_id as "farm_id!: Uuid" FROM users WHERE farm_id = $1 AND role = 'WORKER' ORDER BY email"#,
             farm_id
         )
         .fetch_all(&self.pool)
