@@ -15,85 +15,85 @@ use crate::models::query::ListQuery;
 
 #[debug_handler]
 pub async fn list(
-    AuthClaims(claims): AuthClaims,
-    Query(q): Query<ListQuery>,
+    AuthClaims(_claims): AuthClaims,
+    Query(_q): Query<ListQuery>,
     Extension(_raw_material_service): Extension<Arc<RawMaterialService>>,
 ) -> AppResult<Response> {
-    require_role(&claims, &["FARM_OWNER", "WORKER", "SYSTEM_ADMIN"])?;
-    let farm_id = require_farm(&claims)?;
-    let result = _raw_material_service.list(farm_id, &q).await?;
+    require_role(&_claims, &["FARM_OWNER", "WORKER", "SYSTEM_ADMIN"])?;
+    let farm_id = require_farm(&_claims)?;
+    let result = _raw_material_service.list(farm_id, &_q).await?;
     Ok(ok(result))
 }
 
 #[debug_handler]
 pub async fn create(
-    AuthClaims(claims): AuthClaims,
+    AuthClaims(_claims): AuthClaims,
     Extension(_raw_material_service): Extension<Arc<RawMaterialService>>,
-    Json(req): Json<CreateRawMaterialRequest>,
+    Json(_req): Json<CreateRawMaterialRequest>,
 ) -> AppResult<Response> {
-    require_role(&claims, &["FARM_OWNER", "WORKER"])?;
-    let farm_id = require_farm(&claims)?;
-    let material = _raw_material_service.create(farm_id, req).await?;
+    require_role(&_claims, &["FARM_OWNER", "WORKER"])?;
+    let farm_id = require_farm(&_claims)?;
+    let material = _raw_material_service.create(farm_id, _req).await?;
     Ok(created(material))
 }
 
 #[debug_handler]
 pub async fn get_one(
-    AuthClaims(claims): AuthClaims,
-    Path(id): Path<Uuid>,
+    AuthClaims(_claims): AuthClaims,
+    Path(_id): Path<Uuid>,
     Extension(_raw_material_service): Extension<Arc<RawMaterialService>>,
 ) -> AppResult<Response> {
-    require_role(&claims, &["FARM_OWNER", "WORKER", "SYSTEM_ADMIN"])?;
-    let farm_id = require_farm(&claims)?;
-    let material = _raw_material_service.get_one(id, farm_id).await?;
+    require_role(&_claims, &["FARM_OWNER", "WORKER", "SYSTEM_ADMIN"])?;
+    let farm_id = require_farm(&_claims)?;
+    let material = _raw_material_service.get_one(_id, farm_id).await?;
     Ok(ok(material))
 }
 
 #[debug_handler]
 pub async fn update(
-    AuthClaims(claims): AuthClaims,
-    Path(id): Path<Uuid>,
+    AuthClaims(_claims): AuthClaims,
+    Path(_id): Path<Uuid>,
     Extension(_raw_material_service): Extension<Arc<RawMaterialService>>,
-    Json(req): Json<UpdateRawMaterialRequest>,
+    Json(_req): Json<UpdateRawMaterialRequest>,
 ) -> AppResult<Response> {
-    require_role(&claims, &["FARM_OWNER", "WORKER"])?;
-    let farm_id = require_farm(&claims)?;
-    let updated = _raw_material_service.update(id, farm_id, req).await?;
+    require_role(&_claims, &["FARM_OWNER", "WORKER"])?;
+    let farm_id = require_farm(&_claims)?;
+    let updated = _raw_material_service.update(_id, farm_id, _req).await?;
     Ok(ok(updated))
 }
 
 #[debug_handler]
 pub async fn delete(
-    AuthClaims(claims): AuthClaims,
-    Path(id): Path<Uuid>,
+    AuthClaims(_claims): AuthClaims,
+    Path(_id): Path<Uuid>,
     Extension(_raw_material_service): Extension<Arc<RawMaterialService>>,
 ) -> AppResult<Response> {
-    require_role(&claims, &["FARM_OWNER"])?;
-    let farm_id = require_farm(&claims)?;
-    _raw_material_service.delete(id, farm_id).await?;
+    require_role(&_claims, &["FARM_OWNER"])?;
+    let farm_id = require_farm(&_claims)?;
+    _raw_material_service.delete(_id, farm_id).await?;
     Ok(no_content())
 }
 
 #[debug_handler]
 pub async fn low_stock(
-    AuthClaims(claims): AuthClaims,
+    AuthClaims(_claims): AuthClaims,
     Extension(_raw_material_service): Extension<Arc<RawMaterialService>>,
 ) -> AppResult<Response> {
-    require_role(&claims, &["FARM_OWNER", "WORKER"])?;
-    let farm_id = require_farm(&claims)?;
+    require_role(&_claims, &["FARM_OWNER", "WORKER"])?;
+    let farm_id = require_farm(&_claims)?;
     let items = _raw_material_service.low_stock(farm_id).await?;
     Ok(ok(items))
 }
 
 #[debug_handler]
 pub async fn adjust_quantity(
-    AuthClaims(claims): AuthClaims,
-    Path(id): Path<Uuid>,
+    AuthClaims(_claims): AuthClaims,
+    Path(_id): Path<Uuid>,
     Extension(_raw_material_service): Extension<Arc<RawMaterialService>>,
-    Json(req): Json<AdjustQuantityRequest>,
+    Json(_req): Json<AdjustQuantityRequest>,
 ) -> AppResult<Response> {
-    require_role(&claims, &["FARM_OWNER", "WORKER"])?;
-    let farm_id = require_farm(&claims)?;
-    let updated = _raw_material_service.adjust_quantity(id, farm_id, req).await?;
+    require_role(&_claims, &["FARM_OWNER", "WORKER"])?;
+    let farm_id = require_farm(&_claims)?;
+    let updated = _raw_material_service.adjust_quantity(_id, farm_id, _req).await?;
     Ok(ok(updated))
 }

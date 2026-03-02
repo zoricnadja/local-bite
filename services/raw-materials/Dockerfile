@@ -1,29 +1,25 @@
-FROM rust:1.75-slim AS builder
-
-RUN apt-get update && apt-get install -y \
-    musl-tools pkg-config \
-    && rm -rf /var/lib/apt/lists/*
-
-RUN rustup target add x86_64-unknown-linux-musl
+FROM rust AS builder
 
 WORKDIR /app
 
 COPY Cargo.toml Cargo.lock ./
-COPY libs/ libs/
-COPY services/raw-materials/ services/raw-materials/
+COPY services services
+COPY libs ./libs
+COPY .sqlx .sqlx
 
-RUN for svc in auth production products orders; do \
-    mkdir -p services/$svc/src && \
-    printf '[package]\nname="%s"\nversion="0.1.0"\nedition="2021"\n[dependencies]' $svc \
-        > services/$svc/Cargo.toml && \
-    echo 'fn main(){}' > services/$svc/src/main.rs; \
-done
+ENV SQLX_OFFLINE=true
+RUN cargo build --release -p raw-materials
 
-RUN cargo build --release --target x86_64-unknown-linux-musl --bin raw-materials
+FROM debian:bookworm-slim
 
-FROM alpine:3.19
-RUN apk add --no-cache ca-certificates tzdata
 WORKDIR /app
-COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/raw-materials ./raw-materials
-COPY services/raw-materials/migrations/ ./migrations/
+
+RUN apt-get update && \
+    apt-get install -y ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /app/target/release/raw-materials .
+
+EXPOSE 8080
+
 CMD ["./raw-materials"]

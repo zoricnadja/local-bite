@@ -1,7 +1,0 @@
-# This config is used inside Docker builds where musl-tools is installed.
-# It tells the musl target to use the musl-gcc linker wrapper.
-[target.x86_64-unknown-linux-musl]
-linker = "x86_64-linux-musl-gcc"
-
-# For local Windows/Mac development this file is ignored
-# (target defaults to your host triple, not musl).

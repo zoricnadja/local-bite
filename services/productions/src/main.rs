@@ -41,7 +41,7 @@ async fn main() -> anyhow::Result<()> {
 
     let app = Router::new()
         .route("/health", get(|| async { "ok" }))
-        .nest("/", routes::production_routes())
+        .nest("/batches", routes::production_routes())
         .layer(CorsLayer::permissive())
         .layer(Extension(batch_service))
         .layer(Extension(step_service))
