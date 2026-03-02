@@ -1,0 +1,75 @@
+use std::sync::Arc;
+use uuid::Uuid;
+use chrono::Utc;
+use argon2::{Argon2, password_hash::{SaltString, PasswordHasher}};
+
+use common::errors::AppError;
+use common::jwt::Claims;
+
+use crate::dtos::add_worker_request::AddWorkerRequest;
+use crate::dtos::create_farm_request::CreateFarmRequest;
+use crate::models::farms::Farm;
+use crate::repository::farm_repository::FarmRepository;
+
+#[derive(Clone)]
+pub struct FarmService {
+    pub repo: Arc<FarmRepository>,
+}
+
+impl FarmService {
+    pub fn new(repo: Arc<FarmRepository>) -> Self { Self { repo } }
+
+    pub async fn create_farm(&self, claims: &Claims, payload: CreateFarmRequest) -> Result<Farm, AppError> {
+        if claims.role != "FARM_OWNER" {
+            return Err(AppError::Forbidden("Only FARM_OWNER can create a farm".into()));
+        }
+        if claims.farm_id.is_some() {
+            return Err(AppError::Conflict("You already have a farm".into()));
+        }
+
+        let farm_id = Uuid::new_v4();
+        let mut tx = self.repo.pool.begin().await?;
+
+        self.repo.insert_farm_tx(&mut tx, farm_id, &payload.name, claims.sub).await?;
+        self.repo.set_user_farm_tx(&mut tx, claims.sub, farm_id).await?;
+
+        tx.commit().await?;
+
+        let farm = Farm { id: farm_id, name: payload.name, owner_id: claims.sub, created_at: Utc::now().naive_utc() };
+        Ok(farm)
+    }
+
+    pub async fn add_worker(&self, claims: &Claims, farm_id: Uuid, payload: AddWorkerRequest) -> Result<WorkerOut, AppError> {
+        if claims.role != "FARM_OWNER" {
+            return Err(AppError::Forbidden("Only FARM_OWNER can add workers".into()));
+        }
+        if claims.farm_id != Some(farm_id) {
+            return Err(AppError::Forbidden("You can only add workers to your own farm".into()));
+        }
+
+        if self.repo.email_exists(&payload.email).await? {
+            return Err(AppError::Conflict("Email already registered".into()));
+        }
+
+        let salt = SaltString::generate(&mut rand::thread_rng());
+        let password_hash = Argon2::default()
+            .hash_password(payload.password.as_bytes(), &salt)
+            .map_err(|e| AppError::BadRequest(e.to_string()))?
+            .to_string();
+
+        let worker_id = Uuid::new_v4();
+        self.repo
+            .insert_worker(worker_id, &payload.email, &password_hash, farm_id)
+            .await?;
+
+        Ok(WorkerOut { id: worker_id, email: payload.email, role: "WORKER".to_string(), farm_id })
+    }
+}
+
+#[derive(serde::Serialize)]
+pub struct WorkerOut {
+    pub id: Uuid,
+    pub email: String,
+    pub role: String,
+    pub farm_id: Uuid,
+}
