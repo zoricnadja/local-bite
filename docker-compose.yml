@@ -73,6 +73,7 @@ services:
       DATABASE_URL: ${RAW_MATERIALS_DATABASE_URL}
       RUST_LOG: ${RAW_MATERIALS_RUST_LOG}
       PORT: ${RAW_MATERIALS_PORT}
+      JWT_SECRET: ${JWT_SECRET}
     ports:
       - ${RAW_MATERIALS_PORT}:${RAW_MATERIALS_PORT}
     depends_on:
@@ -104,6 +105,7 @@ services:
     container_name: products-service
     environment:
       DATABASE_URL: ${PRODUCTS_DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET}
       RUST_LOG: ${PRODUCTS_RUST_LOG}
       PORT: ${PRODUCTS_PORT}
     ports:
@@ -138,6 +140,7 @@ services:
     environment:
       DATABASE_URL: ${PRODUCTIONS_DATABASE_URL}
       RUST_LOG: ${PRODUCTIONS_RUST_LOG}
+      JWT_SECRET: ${JWT_SECRET}
       PORT: ${PRODUCTIONS_PORT}
     ports:
       - ${PRODUCTIONS_PORT}:${PRODUCTIONS_PORT}
@@ -171,6 +174,7 @@ services:
     environment:
       DATABASE_URL: ${ORDERS_DATABASE_URL}
       RUST_LOG: ${ORDERS_RUST_LOG}
+      JWT_SECRET: ${JWT_SECRET}
       PORT: ${ORDERS_PORT}
     ports:
       - ${ORDERS_PORT}:${ORDERS_PORT}

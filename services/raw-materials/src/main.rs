@@ -23,14 +23,14 @@ async fn main() -> anyhow::Result<()> {
         ))
         .with(tracing_subscriber::fmt::layer())
         .init();
-
+    tracing::info!("Starting raw materials server");
     let pool = db::create_pool().await?;
     let repository = Arc::new(RawMaterialRepository::new(pool.clone()));
     let service = Arc::new(RawMaterialService::new(repository.clone()));
 
     let app = Router::new()
         .route("/health", get(|| async { "ok" }))
-        .nest("/raw-materials", routes::raw_material_routes(pool))
+        .nest("/raw-materials", routes::raw_material_routes())
         .layer(CorsLayer::permissive())
         .layer(Extension(service));
 
