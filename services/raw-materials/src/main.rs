@@ -30,7 +30,7 @@ async fn main() -> anyhow::Result<()> {
 
     let app = Router::new()
         .route("/health", get(|| async { "ok" }))
-        .nest("/raw-materials", routes::raw_material_routes())
+        .nest("/raw_materials", routes::raw_material_routes())
         .layer(CorsLayer::permissive())
         .layer(Extension(service));
 
