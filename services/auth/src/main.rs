@@ -12,10 +12,13 @@ use dotenvy::dotenv;
 use crate::db::create_pool;
 use crate::handlers::auth::{login, me, register};
 use crate::service::service::AuthService;
+use crate::service::farm_service::FarmService;
+use crate::repository::farm_repository::FarmRepository;
 use tower_http::cors::{CorsLayer, Any};
 use http::Method;
 use axum::middleware::from_fn;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use crate::handlers::farms::{add_worker, create_farm};
 use crate::middleware::auth_middleware::auth_middleware;
 
 #[tokio::main]
@@ -30,8 +33,10 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     let pool = create_pool().await?;
-    let user_repo = Arc::new(repository::repository::UserRepository::new(pool));
+    let user_repo = Arc::new(repository::repository::UserRepository::new(pool.clone()));
     let auth_service = Arc::new(AuthService::new(user_repo, jwt_secret));
+    let farm_repo = Arc::new(FarmRepository::new(pool));
+    let farm_service = Arc::new(FarmService::new(farm_repo));
 
     let cors = CorsLayer::new()
         .allow_origin(Any)
@@ -40,6 +45,8 @@ async fn main() -> anyhow::Result<()> {
 
     let protected = Router::new()
         .route("/me", get(me))
+        .route("/farms", post(create_farm))
+        .route("/farms/{id}/workers", post(add_worker))
         .route_layer(from_fn(auth_middleware));
 
     let app = Router::new()
@@ -47,7 +54,8 @@ async fn main() -> anyhow::Result<()> {
         .route("/login", post(login))
         .merge(protected)
         .layer(cors)
-        .layer(Extension(auth_service));
+        .layer(Extension(auth_service))
+        .layer(Extension(farm_service));
 
     let port = std::env::var("PORT").unwrap_or_else(|_| "8080".to_string());
     let addr = format!("0.0.0.0:{}", port);
