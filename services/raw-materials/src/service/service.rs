@@ -54,16 +54,16 @@ impl RawMaterialService {
         }
 
         self.raw_material_repository.insert(
-            farm_id,
             Uuid::new_v4(),
-            req.material_type.trim(),
+            farm_id,
             req.name.trim(),
+            req.material_type.trim(),
             to_decimal(req.quantity),
             req.unit.trim(),
-            req.origin.as_deref(),
             req.supplier.as_deref(),
-            req.expiry_date,
+            req.origin.as_deref(),
             req.harvest_date,
+            req.expiry_date,
             req.notes.as_deref(),
             req.low_stock_threshold.map(to_decimal),
         )
