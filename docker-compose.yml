@@ -177,6 +177,7 @@ services:
       RUST_LOG: ${ORDERS_RUST_LOG}
       JWT_SECRET: ${JWT_SECRET}
       PORT: ${ORDERS_PORT}
+      PRODUCTS_SERVICE_URL: ${PRODUCTS_SERVICE_URL}
     ports:
       - ${ORDERS_PORT}:${ORDERS_PORT}
     depends_on:
