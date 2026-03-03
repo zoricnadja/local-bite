@@ -4,7 +4,7 @@ use anyhow::{anyhow, Context};
 use bigdecimal::BigDecimal;
 use uuid::Uuid;
 use common::errors::{AppError, AppResult};
-use crate::dtos::raw_material_api_data::RawMaterialApiData;
+use crate::dtos::raw_material_api_data::{RawMaterialApiData, RawMaterialWrapper};
 use crate::dtos::raw_material_request::RawMaterialRequest;
 use crate::models::batch_raw_material::BatchRawMaterial;
 use crate::models::insert_raw_material_params::InsertRawMaterialParams;
@@ -104,9 +104,8 @@ impl RawMaterialsService {
         token: &str,
     ) -> anyhow::Result<RawMaterialApiData> {
         let base = std::env::var("RAW_MATERIALS_SERVICE_URL")
-            .unwrap_or_else(|_| "http://raw-materials:3002".into());
-        let url = format!("{}/raw-materials/{}", base, raw_material_id);
-
+            .unwrap_or_else(|_| "http://raw-materials-service:3002".into());
+        let url = format!("{}/raw_materials/{}", base, raw_material_id);
         let client = reqwest::Client::new();
         let resp = client
             .get(&url)
@@ -125,12 +124,10 @@ impl RawMaterialsService {
                 resp.status(), raw_material_id
             ));
         }
-
-        let body: RawMaterialApiData = resp
+        let wrapper: RawMaterialWrapper = resp
             .json()
             .await
             .context("Failed to parse raw material response")?;
-
-        Ok(body.into())
+        Ok(wrapper.data)
     }
 }

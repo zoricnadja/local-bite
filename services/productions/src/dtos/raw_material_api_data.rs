@@ -10,3 +10,8 @@ pub struct RawMaterialApiData {
     pub(crate) origin:        Option<String>,
     pub(crate) supplier:      Option<String>,
 }
+
+#[derive(serde::Deserialize)]
+pub struct RawMaterialWrapper {
+    pub(crate) data: RawMaterialApiData,
+}
