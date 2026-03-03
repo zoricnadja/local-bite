@@ -10,4 +10,5 @@ pub struct CreateOrderRequest {
     pub customer_email: Option<String>,
     pub notes:          Option<String>,
     pub items:          Vec<OrderItemRequest>,
+    pub farm_id:        Option<Uuid>,
 }

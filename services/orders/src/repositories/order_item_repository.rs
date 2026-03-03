@@ -38,7 +38,7 @@ impl OrderItemRepository{
         &self,
         tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
         order_id: Uuid,
-        items: &[NewOrderItem],
+        items: &[&NewOrderItem],
     ) -> AppResult<Vec<OrderItem>> {
         let mut inserted = Vec::with_capacity(items.len());
 

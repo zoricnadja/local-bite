@@ -30,6 +30,23 @@ pub async fn list(
     Ok(ok(result))
 }
 
+// ── GET /orders/user/{id}?page=1&status=PENDING&search=Petar ───────────────────────────
+#[debug_handler]
+pub async fn get_orders_by_user(
+    AuthClaims(_claims): AuthClaims,
+    Query(_q): Query<ListOrdersQuery>,
+    Path(_id): Path<Uuid>,
+    Extension(_order_service): Extension<Arc<OrderService>>
+) -> AppResult<Response> {
+    require_role(&_claims, &["CUSTOMER"])?;
+
+    let result = _order_service
+        .find_all_by_user_id(_id, &_q)
+        .await?;
+
+    Ok(ok(result))
+}
+
 // ── POST /orders ──────────────────────────────────────────────────────────────
 
 #[debug_handler]
@@ -40,11 +57,10 @@ pub async fn create(
     Json(_req): Json<CreateOrderRequest>,
 ) -> AppResult<Response> {
     require_role(&_claims, &["FARM_OWNER", "WORKER", "CUSTOMER"])?;
-    let farm_id = require_farm(&_claims)?;
-    let token   = extract_token(&_headers);
+    let token = extract_token(&_headers);
 
     let result = _order_service
-        .create_order(farm_id, _req, &token)
+        .create_order(_claims.sub, &*_claims.email, _req, &token)
         .await?;
 
     Ok(created(result))
@@ -59,10 +75,9 @@ pub async fn get_one(
     Extension(_order_service): Extension<Arc<OrderService>>
 ) -> AppResult<Response> {
     require_role(&_claims, &["FARM_OWNER", "WORKER", "CUSTOMER", "SYSTEM_ADMIN"])?;
-    let farm_id = require_farm(&_claims)?;
 
     let result = _order_service
-        .get_order(_id, farm_id)
+        .get_order(_id)
         .await?;
 
     Ok(ok(result))

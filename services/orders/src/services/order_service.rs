@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use bigdecimal::BigDecimal;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -13,6 +14,7 @@ use crate::{
 };
 use crate::dtos::analytics::analytics_response::{AnalyticsResponse, MonthlyRevenue};
 use crate::dtos::order::create_order_request::CreateOrderRequest;
+use crate::dtos::order::create_order_response::CreateOrderResponse;
 use crate::dtos::order::list_orders_query::ListOrdersQuery;
 use crate::dtos::order::order_response::OrderResponse;
 use crate::dtos::order::update_status_request::UpdateStatusRequest;
@@ -61,14 +63,38 @@ impl OrderService {
         })
     }
 
+    pub async fn find_all_by_user_id(
+        &self,
+        _id: Uuid,
+        q: &ListOrdersQuery,
+    ) -> AppResult<PaginatedResponse<OrderResponse>> {
+
+        let (orders, total) = tokio::try_join!(
+            self.order_repository.find_all_by_user_id(_id, q),
+            self.order_repository.count(_id, q),
+        )?;
+        tracing::info!("{:?}", orders);
+        let mut responses = Vec::with_capacity(orders.len());
+        for order in orders {
+            let items = self.order_item_repository.find_by_order_id(order.id).await?;
+            responses.push(map_order_response(order, items));
+        }
+
+        Ok(PaginatedResponse {
+            data: responses,
+            total,
+            page: q.page.unwrap_or(1),
+            limit: q.limit(),
+        })
+    }
+
     // ── Get single order ──────────────────────────────────────────────────────
 
     pub async fn get_order(
         &self,
         id: Uuid,
-        farm_id: Uuid,
     ) -> AppResult<OrderResponse> {
-        let order = self.order_repository.find_by_id(id, farm_id).await?;
+        let order = self.order_repository.find_by_id(id).await?;
         let items = self.order_item_repository.find_by_order_id(order.id).await?;
         Ok(map_order_response(order, items))
     }
@@ -77,10 +103,11 @@ impl OrderService {
 
     pub async fn create_order(
         &self,
-        farm_id: Uuid,
+        _id: Uuid,
+        _email: &str,
         req: CreateOrderRequest,
         token: &str,
-    ) -> AppResult<OrderResponse> {
+    ) -> AppResult<CreateOrderResponse> {
         // Validate items
         if req.items.is_empty() {
             return Err(AppError::BadRequest("Order must have at least one item".into()));
@@ -120,11 +147,18 @@ impl OrderService {
                 product_id:   snap.id,
                 product_name: snap.name.clone(),
                 product_type: snap.product_type.clone(),
+                farm_id:      snap.farm_id.unwrap(),
                 unit_price:   BigDecimal::from_str(&snap.price.to_string()).unwrap_or_default(),
                 quantity:     BigDecimal::from_str(&item.quantity.to_string()).unwrap_or_default(),
                 unit:         snap.unit.clone(),
             })
             .collect();
+
+        // Group items by farm
+        let mut by_farm: HashMap<Uuid, Vec<&NewOrderItem>> = HashMap::new();
+        for item in &new_items {
+            by_farm.entry(item.farm_id).or_default().push(item);
+        }
 
         // Calculate total
         let total_price: BigDecimal = new_items
@@ -133,26 +167,41 @@ impl OrderService {
             .fold(BigDecimal::from(0), |acc, x| acc + x);
 
         let mut tx = self.order_repository.pool.begin().await?;
+        let mut created_orders: Vec<(Order, Vec<OrderItem>)> = Vec::new();
 
-        let order = self.order_repository
-            .insert(
-                &mut tx,
-                farm_id,
-                req.customer_id,
-                req.customer_name.as_deref(),
-                req.customer_email.as_deref(),
-                req.notes.as_deref(),
-                &total_price,
-            )
-            .await?;
+        for (farm_id, farm_items) in &by_farm {
+            let farm_total: BigDecimal = farm_items
+                .iter()
+                .map(|i| &i.unit_price * &i.quantity)
+                .fold(BigDecimal::from(0), |acc, x| acc + x);
+            let email = _email.to_string();
+            let order = self.order_repository
+                .insert(
+                    &mut tx,
+                    *farm_id,
+                    req.customer_id.unwrap_or(_id),
+                    req.customer_name.as_deref(),
+                    req.customer_email.clone().unwrap_or(email),
+                    req.notes.as_deref(),
+                    &farm_total,
+                )
+                .await?;
 
-        let items = self.order_item_repository
-            .insert_batch(&mut tx, order.id, &new_items)
-            .await?;
+            let items = self.order_item_repository
+                .insert_batch(&mut tx, order.id, farm_items)
+                .await?;
+
+            created_orders.push((order, items));
+        }
 
         tx.commit().await?;
 
-        Ok(map_order_response(order, items))
+        let orders = created_orders
+            .into_iter()
+            .map(|(o, i)| map_order_response(o, i))
+            .collect();
+
+        Ok(CreateOrderResponse { orders })
     }
 
     // ── Update status ─────────────────────────────────────────────────────────
@@ -164,7 +213,7 @@ impl OrderService {
         req: UpdateStatusRequest,
         caller_role: &str,
     ) -> AppResult<OrderResponse> {
-        let current = self.order_repository.find_by_id(id, farm_id).await?;
+        let current = self.order_repository.find_by_id(id).await?;
 
         let current_status = OrderStatus::from_str(&current.status)
             .ok_or_else(|| AppError::Internal(anyhow::anyhow!("Unknown current status")))?;
@@ -211,7 +260,7 @@ impl OrderService {
     // ── Delete order ──────────────────────────────────────────────────────────
 
     pub async fn delete_order(&self, id: Uuid, farm_id: Uuid) -> AppResult<()> {
-        let order = self.order_repository.find_by_id(id, farm_id).await?;
+        let order = self.order_repository.find_by_id(id).await?;
 
         // Only PENDING or CANCELLED orders can be deleted
         if !matches!(order.status.as_str(), "PENDING" | "CANCELLED") {

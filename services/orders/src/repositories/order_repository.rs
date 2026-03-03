@@ -19,16 +19,16 @@ impl OrderRepository {
 
     // ── Queries ───────────────────────────────────────────────────────────────
 
-    pub async fn find_by_id(&self, id: Uuid, farm_id: Uuid) -> AppResult<Order> {
+    pub async fn find_by_id(&self, id: Uuid) -> AppResult<Order> {
         sqlx::query_as!(
             Order,
             r#"
             SELECT id, farm_id, customer_id, customer_name, customer_email,
                    status, total_price, notes, is_deleted, created_at, updated_at
             FROM   orders
-            WHERE  id = $1 AND farm_id = $2 AND is_deleted = FALSE
+            WHERE  id = $1 AND is_deleted = FALSE
             "#,
-            id, farm_id
+            id
         )
         .fetch_optional(&self.pool)
         .await?
@@ -60,6 +60,37 @@ impl OrderRepository {
             LIMIT  $4 OFFSET $5
             "#,
             farm_id, status_f, search_f, limit, offset
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(items)
+    }
+    pub async fn find_all_by_user_id(
+        &self,
+        _id: Uuid,
+        q: &ListOrdersQuery,
+    ) -> AppResult<Vec<Order>> {
+        let offset   = q.offset();
+        let limit    = q.limit();
+        let status_f = q.status.as_deref().unwrap_or("");
+        let search_f = q.search.as_deref().unwrap_or("");
+
+        let items = sqlx::query_as!(
+            Order,
+            r#"
+            SELECT id, farm_id, customer_id, customer_name, customer_email,
+                   status, total_price, notes, is_deleted, created_at, updated_at
+            FROM   orders
+            WHERE  customer_id    = $1
+              AND  is_deleted = FALSE
+              AND  ($2 = '' OR status ILIKE $2)
+              AND  ($3 = '' OR customer_name  ILIKE '%' || $3 || '%'
+                            OR customer_email ILIKE '%' || $3 || '%')
+            ORDER  BY created_at DESC
+            LIMIT  $4 OFFSET $5
+            "#,
+            _id, status_f, search_f, limit, offset
         )
         .fetch_all(&self.pool)
         .await?;
@@ -99,9 +130,9 @@ impl OrderRepository {
         &self,
         tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
         farm_id: Uuid,
-        customer_id: Option<Uuid>,
+        customer_id: Uuid,
         customer_name: Option<&str>,
-        customer_email: Option<&str>,
+        customer_email: String,
         notes: Option<&str>,
         total_price: &BigDecimal,
     ) -> AppResult<Order> {
@@ -215,7 +246,7 @@ impl OrderRepository {
             ORDER  BY status
             "#,
             farm_id,
-            from, 
+            from,
             to
         )
         .fetch_all(&self.pool)
