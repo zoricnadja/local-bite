@@ -12,6 +12,21 @@ use common::{
     middleware::{require_farm, require_role, AuthClaims},
     response::{created, no_content, ok},
 };
+// ── GET /products/farm ─────────────────────────────────────────────────────────────
+
+#[debug_handler]
+pub async fn list_by_farm(
+    AuthClaims(_claims): AuthClaims,
+    Query(_q): Query<ListQuery>,
+    Extension(_product_service): Extension<Arc<ProductService>>,
+) -> AppResult<Response> {
+    require_role(&_claims, &["FARM_OWNER", "WORKER", "SYSTEM_ADMIN", "CUSTOMER"])?;
+    let farm_id = require_farm(&_claims)?;
+
+    let result = _product_service.find_all_by_farm_id(farm_id, &_q).await?;
+    Ok(ok(result))
+}
+
 // ── GET /products ─────────────────────────────────────────────────────────────
 
 #[debug_handler]
@@ -20,10 +35,9 @@ pub async fn list(
     Query(_q): Query<ListQuery>,
     Extension(_product_service): Extension<Arc<ProductService>>,
 ) -> AppResult<Response> {
-    require_role(&_claims, &["FARM_OWNER", "WORKER", "SYSTEM_ADMIN"])?;
-    let farm_id = require_farm(&_claims)?;
+    require_role(&_claims, &["SYSTEM_ADMIN", "CUSTOMER"])?;
 
-    let result = _product_service.list(farm_id, &_q).await?;
+    let result = _product_service.find_all(&_q).await?;
     Ok(ok(result))
 }
 
@@ -35,7 +49,7 @@ pub async fn create(
     Extension(_product_service): Extension<Arc<ProductService>>,
     Json(_req): Json<CreateProductRequest>,
 ) -> AppResult<Response> {
-    require_role(&_claims, &["FARM_OWNER", "WORKER"])?;
+    require_role(&_claims, &["FARM_OWNER", "WORKER", "SYSTEM_ADMIN", "CUSTOMER"])?;
     let farm_id = require_farm(&_claims)?;
 
     let product = _product_service.create(farm_id, _req).await?;
@@ -50,10 +64,9 @@ pub async fn get_one(
     Path(_id): Path<Uuid>,
     Extension(_product_service): Extension<Arc<ProductService>>,
 ) -> AppResult<Response> {
-    require_role(&_claims, &["FARM_OWNER", "WORKER", "SYSTEM_ADMIN"])?;
-    let farm_id = require_farm(&_claims)?;
+    require_role(&_claims, &["FARM_OWNER", "WORKER", "SYSTEM_ADMIN", "CUSTOMER"])?;
 
-    let product = _product_service.get_one(_id, farm_id).await?;
+    let product = _product_service.get_one(_id).await?;
     Ok(ok(product))
 }
 
@@ -88,7 +101,7 @@ pub async fn update(
     Extension(_product_service): Extension<Arc<ProductService>>,
     Json(req): Json<UpdateProductRequest>,
 ) -> AppResult<Response> {
-    require_role(&_claims, &["FARM_OWNER", "WORKER"])?;
+    require_role(&_claims, &["FARM_OWNER", "WORKER", "SYSTEM_ADMIN", "CUSTOMER"])?;
     let farm_id = require_farm(&_claims)?;
 
     let updated = _product_service.update(_id, farm_id, req).await?;

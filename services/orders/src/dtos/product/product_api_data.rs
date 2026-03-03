@@ -11,4 +11,5 @@ pub struct ProductApiData {
     pub quantity: Decimal,
     pub unit: String,
     pub is_active: bool,
+    pub farm_id: Option<Uuid>,
 }

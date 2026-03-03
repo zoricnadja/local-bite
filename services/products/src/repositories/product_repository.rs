@@ -1,4 +1,3 @@
-use bigdecimal::BigDecimal;
 use sqlx::PgPool;
 use uuid::Uuid;
 
@@ -18,7 +17,7 @@ impl ProductRepository {
 
     // ── List ──────────────────────────────────────────────────────────────────────
 
-    pub async fn list(
+    pub async fn find_all_by_farm_id(
         &self,
         farm_id: Uuid,
         q: &ListQuery,
@@ -58,6 +57,50 @@ impl ProductRepository {
               AND  (NOT $4    OR is_active = TRUE)
             "#,
             farm_id, type_filter, search, active_only
+        )
+            .fetch_one(&self.pool)
+            .await?
+            .unwrap_or(0);
+
+        Ok((items, total))
+    }
+
+    pub async fn find_all(
+        &self,
+        q: &ListQuery,
+    ) -> AppResult<(Vec<Product>, i64)> {
+        let offset = q.offset();
+        let limit = q.limit();
+        let type_filter = q.product_type.as_deref().unwrap_or("");
+        let search = q.search.as_deref().unwrap_or("");
+        let active_only = q.active_only.unwrap_or(false);
+        let items = sqlx::query_as!(
+            Product,
+            r#"
+            SELECT id, farm_id, name, product_type, description, quantity, unit, price,
+                   batch_id, image_path, qr_token, qr_path, is_active, is_deleted,
+                   created_at, updated_at
+            FROM   products
+            WHERE  is_deleted = FALSE
+              AND  ($1 = '' OR product_type ILIKE $1)
+              AND  ($2 = '' OR name ILIKE '%' || $2 || '%')
+              AND  (NOT $3    OR is_active = TRUE)
+            ORDER  BY created_at DESC
+            LIMIT  $4 OFFSET $5
+            "#,
+            type_filter, search, active_only, limit, offset
+        )
+            .fetch_all(&self.pool)
+            .await?;
+
+        let total: i64 = sqlx::query_scalar!(
+            r#"
+            SELECT COUNT(*) FROM products
+            WHERE  ($1 = '' OR product_type ILIKE $1)
+              AND  ($2 = '' OR name ILIKE '%' || $2 || '%')
+              AND  (NOT $3    OR is_active = TRUE)
+            "#,
+            type_filter, search, active_only
         )
             .fetch_one(&self.pool)
             .await?

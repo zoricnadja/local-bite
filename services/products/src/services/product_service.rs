@@ -29,12 +29,24 @@ impl ProductService {
         Self { product_repository, uploads_dir }
     }
 
-    pub async fn list(
+    pub async fn find_all_by_farm_id(
         &self,
         farm_id: Uuid,
         q: &ListQuery,
     ) -> AppResult<PaginatedResponse<Product>> {
-        let (items, total) = self.product_repository.list(farm_id, q).await?;
+        let (items, total) = self.product_repository.find_all_by_farm_id(farm_id, q).await?;
+        Ok(PaginatedResponse {
+            data: items,
+            total,
+            page: q.page.unwrap_or(1),
+            limit: q.limit(),
+        })
+    }
+    pub async fn find_all(
+        &self,
+        q: &ListQuery,
+    ) -> AppResult<PaginatedResponse<Product>> {
+        let (items, total) = self.product_repository.find_all(q).await?;
         Ok(PaginatedResponse {
             data: items,
             total,
@@ -78,8 +90,8 @@ impl ProductService {
             .await
     }
 
-    pub async fn get_one(&self, id: Uuid, farm_id: Uuid) -> AppResult<Product> {
-        self.product_repository.find_by_id_and_farm(id, farm_id).await
+    pub async fn get_one(&self, id: Uuid) -> AppResult<Product> {
+        self.product_repository.find_by_id(id).await
     }
 
     pub async fn update(

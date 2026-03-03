@@ -7,4 +7,5 @@ pub struct ProductSnapshot {
     pub price:        f64,
     pub unit:         String,
     pub is_active:    bool,
+    pub farm_id:      Option<Uuid>,
 }
