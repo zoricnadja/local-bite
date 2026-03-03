@@ -31,14 +31,9 @@ pub async fn create(
     Extension(_raw_material_service): Extension<Arc<RawMaterialService>>,
     Json(_req): Json<CreateRawMaterialRequest>,
 ) -> AppResult<Response> {
-    tracing::info!("Create raw material service {}", _req.name);
-    tracing::info!("Raw material service {}", _claims.role);
     require_role(&_claims, &["FARM_OWNER", "WORKER"])?;
-    tracing::info!("Raw material service {}", _claims.role);
     let farm_id = require_farm(&_claims)?;
-    tracing::info!("Farm ID: {}", farm_id);
     let material = _raw_material_service.create(farm_id, _req).await?;
-    tracing::info!("Created material service {}", material.name);
     Ok(created(material))
 }
 

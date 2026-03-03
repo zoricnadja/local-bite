@@ -17,7 +17,7 @@ pub async fn list_steps(
     Path(_batch_id): Path<Uuid>,
     Extension(_step_service): Extension<Arc<StepService>>,
 ) -> AppResult<Response> {
-    require_role(&_claims, &["FARM_OWNER", "WORKER", "SYSTEM_ADMIN"])?;
+    require_role(&_claims, &["FARM_OWNER", "WORKER"])?;
     let farm_id = require_farm(&_claims)?;
     Ok(ok(_step_service.list(_batch_id, farm_id).await?))
 }

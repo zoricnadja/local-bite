@@ -18,7 +18,7 @@ pub async fn list(
     Query(_q): Query<ListQuery>,
     Extension(_batch_service): Extension<Arc<BatchService>>,
 ) -> AppResult<Response> {
-    require_role(&_claims, &["FARM_OWNER", "WORKER", "SYSTEM_ADMIN"])?;
+    require_role(&_claims, &["FARM_OWNER", "WORKER"])?;
     let farm_id = require_farm(&_claims)?;
     Ok(ok(_batch_service.list(farm_id, &_q).await?))
 }
@@ -44,7 +44,7 @@ pub async fn get_one(
     Path(_id): Path<Uuid>,
     Extension(_batch_service): Extension<Arc<BatchService>>,
 ) -> AppResult<Response> {
-    require_role(&_claims, &["FARM_OWNER", "WORKER", "SYSTEM_ADMIN"])?;
+    require_role(&_claims, &["FARM_OWNER", "WORKER"])?;
     let farm_id = require_farm(&_claims)?;
     Ok(ok(_batch_service.get_one(_id, farm_id).await?))
 }

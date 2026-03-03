@@ -7,7 +7,7 @@ use uuid::Uuid;
 use crate::services::qr_service::QrService;
 use common::{
     errors::{AppError, AppResult},
-    middleware::{require_farm, require_role, AuthClaims},
+    middleware::{require_role, AuthClaims},
     response::ok,
 };
 // ── GET /products/:id/qr ──────────────────────────────────────────────────────
@@ -29,7 +29,6 @@ pub async fn regenerate_qr(
     Extension(_qr_service): Extension<Arc<QrService>>,
 ) -> AppResult<Response> {
     require_role(&_claims, &["FARM_OWNER"])?;
-    let farm_id = require_farm(&_claims)?;
 
     let updated = _qr_service.regenerate(id).await?;
     Ok(ok(updated))
