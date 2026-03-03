@@ -22,8 +22,11 @@ pub fn product_routes() -> Router {
         // Provenance chain
         .route("/{id}/provenance",            get(products_handler::provenance))
 
-        // Image upload
-        .route("/{id}/image",                 post(image_handler::upload_image))
+        // Image upload + fetch
+        .route(
+            "/{id}/image",
+            get(image_handler::get_image).post(image_handler::upload_image),
+        )
 
         // QR code
         .route("/{id}/qr",                    get(qr_handler::get_qr))

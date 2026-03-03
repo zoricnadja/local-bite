@@ -21,10 +21,8 @@ impl QrService {
     pub async fn get_qr_path(
         &self,
         id: Uuid,
-        farm_id: Uuid,
     ) -> AppResult<std::path::PathBuf> {
-        let product = self.product_repository.find_by_id_and_farm(id, farm_id).await?;
-
+        let product = self.product_repository.find_by_id(id).await?;
         let relative = match &product.qr_path {
             Some(p) => p.clone(),
             None => {
@@ -39,8 +37,8 @@ impl QrService {
     }
     
     /// Issues a brand-new QR token PNG, deleting the old file first.
-    pub async fn regenerate(&self, id: Uuid, farm_id: Uuid) -> AppResult<Product> {
-        let product = self.product_repository.find_by_id_and_farm(id, farm_id).await?;
+    pub async fn regenerate(&self, id: Uuid) -> AppResult<Product> {
+        let product = self.product_repository.find_by_id(id).await?;
 
         if let Some(old) = &product.qr_path {
             let _ = std::fs::remove_file(qr_utils::media_path(old, &self.uploads_dir));
@@ -49,6 +47,6 @@ impl QrService {
         let new_path = qr_utils::generate_qr(product.qr_token, &self.uploads_dir)
             .map_err(AppError::Internal)?;
     
-        self.product_repository.set_qr_path_returning(id, farm_id, &new_path).await
+        self.product_repository.set_qr_path_returning(id, product.farm_id, &new_path).await
     }
 }

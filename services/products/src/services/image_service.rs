@@ -1,3 +1,4 @@
+use std::path::Path;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -40,5 +41,20 @@ impl ImageService {
             .map_err(|e| AppError::BadRequest(e.to_string()))?;
 
         self.product_repository.set_image_path(id, farm_id, &relative_path).await
+    }
+
+    pub async fn get_image_path(
+        &self,
+        id: Uuid,
+    ) -> AppResult<std::path::PathBuf> {
+        let product = self.product_repository.find_by_id(id).await?;
+        let relative = match &product.image_path {
+            Some(p) => p.clone(),
+            None => {
+                Err(AppError::NotFound("product not found".into()))?
+            }
+        };
+
+        Ok(Path::new(&self.uploads_dir).join(relative))
     }
 }

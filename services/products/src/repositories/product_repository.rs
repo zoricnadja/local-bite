@@ -84,6 +84,23 @@ impl ProductRepository {
             .await?
             .ok_or_else(|| AppError::NotFound(format!("Product {} not found", id)))
     }
+    
+    pub async fn find_by_id(&self, id: Uuid) -> AppResult<Product> {
+        sqlx::query_as!(
+            Product,
+            r#"
+            SELECT id, farm_id, name, product_type, description, quantity, unit, price,
+                   batch_id, image_path, qr_token, qr_path, is_active, is_deleted,
+                   created_at, updated_at
+            FROM   products
+            WHERE  id = $1 AND is_deleted = FALSE
+            "#,
+            id
+        )
+            .fetch_optional(&self.pool)
+            .await?
+            .ok_or_else(|| AppError::NotFound(format!("Product {} not found", id)))
+    }
 
     pub async fn find_by_qr_token(&self, qr_token: Uuid) -> AppResult<Product> {
         sqlx::query_as!(

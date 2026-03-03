@@ -1,5 +1,15 @@
-use axum::{debug_handler, extract::{Multipart, Path}, response::Response, Extension};
+use axum::{
+    debug_handler,
+    extract::{Multipart, Path},
+    response::Response,
+    Extension,
+};
 use std::sync::Arc;
+use axum::body::Body;
+use axum::http::{header, StatusCode};
+use axum::response::IntoResponse;
+use tokio::fs::File;
+use tokio_util::io::ReaderStream;
 use uuid::Uuid;
 
 use crate::services::image_service::ImageService;
@@ -50,4 +60,35 @@ pub async fn upload_image(
 
     let updated = _image_service.upload(_id, farm_id, bytes, &mime_type).await?;
     Ok(ok(updated))
+}
+
+// ── GET /products/:id/image ──────────────────────────────────────────────────
+
+#[debug_handler]
+pub async fn get_image(
+    Path(_id): Path<Uuid>,
+    Extension(_image_service): Extension<Arc<ImageService>>,
+) -> AppResult<Response> {
+    let path = _image_service.get_image_path(_id).await?;
+    serve_file(path.as_ref()).await
+}
+
+
+async fn serve_file(full_path: &std::path::Path) -> AppResult<Response> {
+
+    let file = File::open(&full_path)
+        .await
+        .map_err(|_| AppError::NotFound("Image not found on disk".into()))?;
+    let content_type = match full_path.extension().and_then(|e| e.to_str()) {
+        Some("png") => "image/png",
+        Some("jpg") | Some("jpeg") => "image/jpeg",
+        _ => "application/octet-stream",
+    };
+
+    Ok((
+        StatusCode::OK,
+        [(header::CONTENT_TYPE, content_type)],
+        Body::from_stream(ReaderStream::new(file)),
+    )
+        .into_response())
 }

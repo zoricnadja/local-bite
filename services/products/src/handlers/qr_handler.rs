@@ -13,28 +13,25 @@ use common::{
 // ── GET /products/:id/qr ──────────────────────────────────────────────────────
 
 pub async fn get_qr(
-    AuthClaims(claims): AuthClaims,
     Path(id): Path<Uuid>,
     Extension(_qr_service): Extension<Arc<QrService>>,
 ) -> AppResult<Response> {
-    require_role(&claims, &["FARM_OWNER", "WORKER", "CUSTOMER", "SYSTEM_ADMIN"])?;
-    let farm_id = require_farm(&claims)?;
 
-    let path = _qr_service.get_qr_path(id, farm_id).await?;
+    let path = _qr_service.get_qr_path(id).await?;
     serve_png_file(&path).await
 }
 
 // ── POST /products/:id/qr/regenerate ─────────────────────────────────────────
 
 pub async fn regenerate_qr(
-    AuthClaims(claims): AuthClaims,
+    AuthClaims(_claims): AuthClaims,
     Path(id): Path<Uuid>,
     Extension(_qr_service): Extension<Arc<QrService>>,
 ) -> AppResult<Response> {
-    require_role(&claims, &["FARM_OWNER"])?;
-    let farm_id = require_farm(&claims)?;
+    require_role(&_claims, &["FARM_OWNER"])?;
+    let farm_id = require_farm(&_claims)?;
 
-    let updated = _qr_service.regenerate(id, farm_id).await?;
+    let updated = _qr_service.regenerate(id).await?;
     Ok(ok(updated))
 }
 
