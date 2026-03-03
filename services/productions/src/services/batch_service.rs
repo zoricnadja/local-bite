@@ -213,6 +213,9 @@ impl BatchService {
     // ── Status validation ─────────────────────────────────────────────────────────
 
     pub fn validate_status_transition(&self, current: &str, next: &str) -> AppResult<()> {
+        if current == next {
+            return Ok(())
+        }
         let valid = match current {
             "PLANNED" => matches!(next, "IN_PROGRESS" | "CANCELLED"),
             "IN_PROGRESS" => matches!(next, "COMPLETED"   | "CANCELLED"),
