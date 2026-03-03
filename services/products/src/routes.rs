@@ -8,11 +8,11 @@ use crate::handlers::{products_handler, public_handler, qr_handler, image_handle
 
 pub fn product_routes() -> Router {
     Router::new()
-        // Public QR scan endpoint — no auth (must be before /:id to avoid conflict)
         .route("/public/{qr_token}",         get(public_handler::scan))
 
         // Collection
         .route("/",                          get(products_handler::list).post(products_handler::create))
+        .route("/farm",                          get(products_handler::list_by_farm))
 
         // Single product CRUD
         .route("/{id}",                       get(products_handler::get_one)
@@ -22,7 +22,7 @@ pub fn product_routes() -> Router {
         // Provenance chain
         .route("/{id}/provenance",            get(products_handler::provenance))
 
-        // Image upload + fetch
+        // Image
         .route(
             "/{id}/image",
             get(image_handler::get_image).post(image_handler::upload_image),

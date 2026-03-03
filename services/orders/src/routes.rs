@@ -1,12 +1,11 @@
 use axum::{
-    routing::{delete, get, post, put},
+    routing::{get, put},
     Router,
 };
-use sqlx::PgPool;
 
 use crate::handlers::orders;
 
-pub fn order_routes(pool: PgPool) -> Router {
+pub fn order_routes() -> Router {
     Router::new()
         // Analytics must be before /:id to avoid route conflict
         .route("/analytics",      get(orders::analytics))
@@ -16,7 +15,9 @@ pub fn order_routes(pool: PgPool) -> Router {
 
         // Single order
         .route("/{id}",            get(orders::get_one).delete(orders::delete))
-        .route("/{id}/status",     put(orders::update_status))
 
-        .with_state(pool)
+        // Orders by user
+        .route("/user/{id}",            get(orders::get_orders_by_user))
+
+        .route("/{id}/status",     put(orders::update_status))
 }
