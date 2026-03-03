@@ -1,12 +1,14 @@
-use serde::Deserialize;
 use uuid::Uuid;
 
-#[derive(Deserialize)]
+use rust_decimal::Decimal;
+
+#[derive(serde::Deserialize)]
 pub struct ProductApiData {
-    pub(crate) id:           Uuid,
-    pub(crate) name:         String,
-    pub(crate) product_type: String,
-    pub(crate) price:        f64,
-    pub(crate) unit:         String,
-    pub(crate) is_active:    bool,
+    pub id: Uuid,
+    pub name: String,
+    pub product_type: String,
+    pub price: Decimal,
+    pub quantity: Decimal,
+    pub unit: String,
+    pub is_active: bool,
 }

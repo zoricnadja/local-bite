@@ -1,6 +1,5 @@
 use std::sync::Arc;
 use axum::{routing::get, Extension, Router};
-use axum::handler::Handler;
 use tower_http::cors::CorsLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use crate::repositories::order_item_repository::OrderItemRepository;

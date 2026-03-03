@@ -1,11 +1,11 @@
 use anyhow::{anyhow, Context};
 use uuid::Uuid;
+use crate::dtos::product::product_api_data::ProductApiData;
 use crate::dtos::product::product_api_response::ProductApiResponse;
-use crate::dtos::product::product_snapshot::ProductSnapshot;
 
-pub async fn fetch_product(product_id: Uuid, token: &str) -> anyhow::Result<ProductSnapshot> {
-    let base = std::env::var("PRODUCT_SERVICE_URL")
-        .unwrap_or_else(|_| "http://product:3004".into());
+pub async fn fetch_product(product_id: Uuid, token: &str) -> anyhow::Result<ProductApiData> {
+    let base = std::env::var("PRODUCTS_SERVICE_URL")
+        .unwrap_or_else(|_| "http://products-service:3003".into());
     let url = format!("{}/products/{}", base, product_id);
 
     let client = reqwest::Client::new();
@@ -32,12 +32,5 @@ pub async fn fetch_product(product_id: Uuid, token: &str) -> anyhow::Result<Prod
         .await
         .context("Failed to parse product response")?;
 
-    Ok(ProductSnapshot {
-        id:           body.data.id,
-        name:         body.data.name,
-        product_type: body.data.product_type,
-        price:        body.data.price,
-        unit:         body.data.unit,
-        is_active:    body.data.is_active,
-    })
+    Ok(body.data)
 }

@@ -202,17 +202,21 @@ impl OrderRepository {
         Ok(count)
     }
 
-    pub async fn orders_by_status(&self, farm_id: Uuid) -> AppResult<Vec<StatusCount>> {
+    pub async fn orders_by_status(&self, farm_id: Uuid, from: &str, to: &str) -> AppResult<Vec<StatusCount>> {
         let rows = sqlx::query_as!(
             StatusCount,
             r#"
             SELECT status, COUNT(*) AS "count!"
             FROM   orders
             WHERE  farm_id = $1 AND is_deleted = FALSE
+            AND  ($2 = '' OR created_at::date >= $2::date)
+            AND  ($3 = '' OR created_at::date <= $3::date)
             GROUP  BY status
             ORDER  BY status
             "#,
-            farm_id
+            farm_id,
+            from, 
+            to
         )
         .fetch_all(&self.pool)
         .await?;

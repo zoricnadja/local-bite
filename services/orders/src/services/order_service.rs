@@ -238,7 +238,7 @@ impl OrderService {
             tokio::try_join!(
                 self.order_repository.total_revenue(farm_id, from, to),
                  self.order_repository.total_orders(farm_id, from, to),
-                 self.order_repository.orders_by_status(farm_id),
+                 self.order_repository.orders_by_status(farm_id, from, to),
                  self.order_repository.revenue_by_month(farm_id, from, to),
                  self.order_item_repository.top_products(farm_id, 10, from, to),
             )?;
