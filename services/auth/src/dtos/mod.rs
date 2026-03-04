@@ -4,3 +4,7 @@ pub mod register_request;
 pub mod login_response;
 pub mod create_farm_request;
 pub mod add_worker_request;
+pub mod update_user_request;
+pub mod update_farm_request;
+pub mod worker_dto;
+pub mod create_farm_response;

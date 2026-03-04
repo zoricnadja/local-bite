@@ -28,12 +28,3 @@ pub async fn login(
     let token = _auth_service.login(_payload).await?;
     Ok(Json(LoginResponse { token }))
 }
-
-#[debug_handler]
-pub async fn me(
-    Extension(_auth_service): Extension<Arc<AuthService>>,
-    Extension(user_id): Extension<uuid::Uuid>,
-) -> Result<impl IntoResponse, AppError> {
-    let user = _auth_service.get_user(user_id).await?;
-    Ok(Json(user))
-}

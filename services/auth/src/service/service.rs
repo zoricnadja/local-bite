@@ -33,38 +33,53 @@ impl AuthService {
             .hash_password(payload.password.as_bytes(), &salt)?
             .to_string();
         let id = Uuid::new_v4();
-        let email = payload.email;
         let role: Role = payload
             .role
             .unwrap_or_else(|| "CUSTOMER".to_string())
             .parse()?;
 
+        let now = Utc::now();
+
         let user = User {
             id,
-            email: email.clone(),
+            email: payload.email.clone(),
             password_hash,
             farm_id: None,
             role: role.clone(),
-            created_at: Utc::now().naive_utc(),
+            first_name: payload.first_name,
+            last_name: payload.last_name,
+            address: payload.address,
+            phone: payload.phone,
+            photo_url: payload.photo_url,
+            date_of_birth: payload.date_of_birth,
+            created_at: now,
+            updated_at: now,
         };
 
         self.user_repo.create_user(user).await?;
+        self.issue_token(id, &payload.email, &role, None)
+    }
 
+    fn issue_token(
+        &self,
+        id: Uuid,
+        email: &str,
+        role: &Role,
+        farm_id: Option<Uuid>,
+    ) -> Result<String, AppError> {
         let claims = Claims {
             sub: id,
-            email,
+            email: email.to_string(),
             role: role.as_str().to_string(),
-            farm_id: None,
+            farm_id,
             exp: (Utc::now().timestamp() + 3600) as usize,
             iat: Utc::now().timestamp() as usize,
         };
-
         let token = encode(
             &Header::default(),
             &claims,
             &EncodingKey::from_secret(self.jwt_secret.as_bytes()),
         )?;
-
         Ok(token)
     }
 
@@ -79,22 +94,7 @@ impl AuthService {
             .verify_password(payload.password.as_bytes(), &parsed_hash)
             .map_err(|_| AppError::Unauthorized("Invalid email or password".into()))?;
 
-        let claims = Claims {
-            sub: user.id,
-            email: user.email,
-            role: String::from(user.role.as_str()),
-            farm_id: user.farm_id,
-            exp: (Utc::now().timestamp() + 3600) as usize,
-            iat: 0,
-        };
-
-        let token = encode(
-            &Header::default(),
-            &claims,
-            &EncodingKey::from_secret(self.jwt_secret.as_bytes()),
-        )?;
-        tracing::info!("Login token: {}", token);
-        Ok(token)
+        self.issue_token(user.id, &user.email, &user.role, user.farm_id)
     }
 
     pub async fn get_user(&self, user_id: Uuid) -> Result<User, AppError> {

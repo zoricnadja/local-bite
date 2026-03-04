@@ -1,14 +1,10 @@
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
-pub struct CreateFarmRequest {
-    pub name: String,
-
-    // Required
-    pub address: String,
-    pub photo_url: String,
-
-    // Optional
+pub struct UpdateFarmRequest {
+    pub name: Option<String>,
+    pub address: Option<String>,
+    pub photo_url: Option<String>,
     pub phone: Option<String>,
     pub description: Option<String>,
     pub website: Option<String>,

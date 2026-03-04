@@ -20,36 +20,29 @@ pub struct FarmRepository {
 impl FarmRepository {
     pub fn new(pool: PgPool) -> Self { Self { pool } }
 
-    pub async fn insert_farm_tx(
+    pub async fn insert_farm(
         &self,
-        tx: &mut Transaction<'_, Postgres>,
-        id: Uuid,
-        name: &str,
-        owner_id: Uuid,
+        f: &Farm,
     ) -> Result<(), AppError> {
         sqlx::query!(
-            r#"INSERT INTO farms (id, name, owner_id) VALUES ($1, $2, $3)"#,
-            id,
-            name,
-            owner_id
+            r#"
+            INSERT INTO farms
+                (id, name, owner_id,
+                 address, photo_url,
+                 phone, description, website,
+                 created_at, updated_at)
+            VALUES
+                ($1, $2, $3,
+                 $4, $5,
+                 $6, $7, $8,
+                 $9, $10)
+            "#,
+            f.id, f.name, f.owner_id,
+            f.address, f.photo_url,
+            f.phone, f.description, f.website,
+            f.created_at, f.updated_at,
         )
-        .execute(&mut **tx)
-        .await?;
-        Ok(())
-    }
-
-    pub async fn set_user_farm_tx(
-        &self,
-        tx: &mut Transaction<'_, Postgres>,
-        user_id: Uuid,
-        farm_id: Uuid,
-    ) -> Result<(), AppError> {
-        sqlx::query!(
-            r#"UPDATE users SET farm_id = $1 WHERE id = $2"#,
-            farm_id,
-            user_id
-        )
-        .execute(&mut **tx)
+        .execute(&self.pool)
         .await?;
         Ok(())
     }
@@ -84,24 +77,66 @@ impl FarmRepository {
         Ok(())
     }
 
-    pub fn build_farm(&self, id: Uuid, name: String, owner_id: Uuid) -> Farm {
-        Farm {
-            id,
-            name,
-            owner_id,
-            created_at: Utc::now().naive_utc(),
-        }
-    }
-
     pub async fn find_by_id(&self, id: Uuid) -> Result<Option<Farm>, AppError> {
         let row = sqlx::query_as!(
             Farm,
-            r#"SELECT id, name, owner_id, created_at FROM farms WHERE id = $1"#,
+            r#"SELECT * FROM farms WHERE id = $1"#,
             id
         )
         .fetch_optional(&self.pool)
         .await?;
         Ok(row)
+    }
+
+    pub async fn find_by_owner(&self, owner_id: Uuid) -> Result<Option<Farm>, AppError> {
+        let farm = sqlx::query_as!(
+            Farm,
+            "SELECT * FROM farms WHERE owner_id = $1",
+            owner_id
+        )
+            .fetch_optional(&self.pool)
+            .await?;
+        Ok(farm)
+    }
+
+    pub async fn find_all(&self) -> Result<Vec<Farm>, AppError> {
+        let farms = sqlx::query_as!(Farm, "SELECT * FROM farms ORDER BY created_at DESC")
+            .fetch_all(&self.pool)
+            .await?;
+        Ok(farms)
+    }
+
+    pub async fn update_farm(&self, f: &Farm) -> Result<Farm, AppError> {
+        let farm = sqlx::query_as!(
+            Farm,
+            r#"
+            UPDATE farms SET
+                name        = $1,
+                address     = $2,
+                photo_url   = $3,
+                phone       = $4,
+                description = $5,
+                website     = $6,
+                updated_at  = $7
+            WHERE id = $8
+            RETURNING *
+            "#,
+            f.name, f.address, f.photo_url,
+            f.phone, f.description, f.website,
+            f.updated_at, f.id,
+        )
+            .fetch_one(&self.pool)
+            .await?;
+        Ok(farm)
+    }
+
+    // ── Delete ────────────────────────────────────────────────────────────────
+
+    pub async fn delete_farm(&self, id: Uuid) -> Result<(), AppError> {
+        sqlx::query!("DELETE FROM farms WHERE id = $1", id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
     }
 
     pub async fn list_workers_by_farm(&self, farm_id: Uuid) -> Result<Vec<WorkerRecord>, AppError> {

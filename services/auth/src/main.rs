@@ -10,16 +10,19 @@ use axum::{Router, routing::post, routing::get, Extension};
 use std::sync::Arc;
 use dotenvy::dotenv;
 use crate::db::create_pool;
-use crate::handlers::auth::{login, me, register};
+use crate::handlers::auth::{login, register};
 use crate::service::service::AuthService;
 use crate::service::farm_service::FarmService;
 use crate::repository::farm_repository::FarmRepository;
 use tower_http::cors::{CorsLayer, Any};
 use http::Method;
 use axum::middleware::from_fn;
+use axum::routing::{delete, put};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-use crate::handlers::farms::{add_worker, create_farm, get_farm, list_workers};
+use crate::handlers::farms::{add_worker, create_farm, delete_farm, get_farm, list_workers, update_farm};
+use crate::handlers::users::{delete_user, list_users, me, update_user};
 use crate::middleware::auth_middleware::auth_middleware;
+use crate::service::user_service::UserService;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -34,19 +37,24 @@ async fn main() -> anyhow::Result<()> {
 
     let pool = create_pool().await?;
     let user_repo = Arc::new(repository::repository::UserRepository::new(pool.clone()));
-    let auth_service = Arc::new(AuthService::new(user_repo, jwt_secret.clone()));
+    let auth_service = Arc::new(AuthService::new(user_repo.clone(), jwt_secret.clone()));
     let farm_repo = Arc::new(FarmRepository::new(pool));
-    let farm_service = Arc::new(FarmService::new(farm_repo, jwt_secret));
-
+    let farm_service = Arc::new(FarmService::new(farm_repo.clone(), user_repo.clone(), jwt_secret.clone()));
+    let user_service = Arc::new(UserService::new(user_repo.clone(), jwt_secret.clone()));
     let cors = CorsLayer::new()
         .allow_origin(Any)
         .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE, Method::OPTIONS])
         .allow_headers(Any);
 
     let protected = Router::new()
-        .route("/me", get(me))
-        .route("/farms", post(create_farm))
-        .route("/farms/{id}", get(get_farm))
+        .route("/me",                 get(me))
+        .route("/users",              get(list_users))
+        .route("/users/{id}",          put(update_user))
+        .route("/users/{id}",          delete(delete_user))
+        .route("/farms",              post(create_farm))
+        .route("/farms/{id}",         get(get_farm))
+        .route("/farms/{id}",          put(update_farm))
+        .route("/farms/{id}",          delete(delete_farm))
         .route("/farms/{id}/workers", post(add_worker))
         .route("/farms/{id}/workers", get(list_workers))
         .route_layer(from_fn(auth_middleware));
@@ -57,6 +65,7 @@ async fn main() -> anyhow::Result<()> {
         .merge(protected)
         .layer(cors)
         .layer(Extension(auth_service))
+        .layer(Extension(user_service))
         .layer(Extension(farm_service));
 
     let port = std::env::var("PORT").unwrap_or_else(|_| "8080".to_string());
