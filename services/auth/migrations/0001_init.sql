@@ -28,7 +28,6 @@ CREATE TABLE farms (
 
     -- Required
                        address     TEXT NOT NULL,
-                       photo_url   TEXT NOT NULL,
 
     -- Optional
                        phone       TEXT,

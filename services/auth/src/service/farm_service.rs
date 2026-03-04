@@ -6,13 +6,15 @@ use jsonwebtoken::{encode, EncodingKey, Header};
 
 use common::errors::AppError;
 use common::jwt::Claims;
-
+use common::models::Role;
 use crate::dtos::add_worker_request::AddWorkerRequest;
 use crate::dtos::create_farm_request::CreateFarmRequest;
 use crate::dtos::create_farm_response::CreateFarmResult;
+use crate::dtos::register_request::RegisterRequest;
 use crate::dtos::update_farm_request::UpdateFarmRequest;
 use crate::dtos::worker_dto::WorkerOut;
 use crate::models::farms::Farm;
+use crate::models::user::User;
 use crate::repository::farm_repository::FarmRepository;
 use crate::repository::farm_repository::WorkerRecord;
 use crate::repository::repository::UserRepository;
@@ -46,7 +48,6 @@ impl FarmService {
             name: farm_name.clone(),
             owner_id: claims.sub,
             address: payload.address,
-            photo_url: payload.photo_url,
             phone: payload.phone,
             description: payload.description,
             website: payload.website,
@@ -76,7 +77,7 @@ impl FarmService {
         Ok(CreateFarmResult { farm, token })
     }
 
-    pub async fn add_worker(&self, claims: &Claims, farm_id: Uuid, payload: AddWorkerRequest) -> Result<WorkerOut, AppError> {
+    pub async fn add_worker(&self, claims: &Claims, farm_id: Uuid, payload: RegisterRequest) -> Result<WorkerOut, AppError> {
         if claims.role != "FARM_OWNER" {
             return Err(AppError::Forbidden("Only FARM_OWNER can add workers".into()));
         }
@@ -93,10 +94,26 @@ impl FarmService {
             .hash_password(payload.password.as_bytes(), &salt)
             .map_err(|e| AppError::BadRequest(e.to_string()))?
             .to_string();
+        let now = Utc::now();
 
         let worker_id = Uuid::new_v4();
-        self.farm_repository
-            .insert_worker(worker_id, &payload.email, &password_hash, farm_id)
+        let user = User {
+            id: worker_id,
+            email: payload.email.clone(),
+            password_hash,
+            farm_id: Some(farm_id),
+            role: Role::Worker,
+            first_name: payload.first_name,
+            last_name: payload.last_name,
+            address: payload.address,
+            phone: payload.phone,
+            photo_url: payload.photo_url,
+            date_of_birth: payload.date_of_birth,
+            created_at: now,
+            updated_at: now,
+        };
+        self.user_repository
+            .create_user(user)
             .await?;
 
         Ok(WorkerOut { id: worker_id, email: payload.email, role: "WORKER".to_string(), farm_id })
@@ -137,7 +154,6 @@ impl FarmService {
 
         if let Some(v) = payload.name        { farm.name        = v; }
         if let Some(v) = payload.address     { farm.address     = v; }
-        if let Some(v) = payload.photo_url   { farm.photo_url   = v; }
         if let Some(v) = payload.phone       { farm.phone       = Some(v); }
         if let Some(v) = payload.description { farm.description = Some(v); }
         if let Some(v) = payload.website     { farm.website     = Some(v); }

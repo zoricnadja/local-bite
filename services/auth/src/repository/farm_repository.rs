@@ -28,17 +28,17 @@ impl FarmRepository {
             r#"
             INSERT INTO farms
                 (id, name, owner_id,
-                 address, photo_url,
+                 address,
                  phone, description, website,
                  created_at, updated_at)
             VALUES
                 ($1, $2, $3,
                  $4, $5,
                  $6, $7, $8,
-                 $9, $10)
+                 $9)
             "#,
             f.id, f.name, f.owner_id,
-            f.address, f.photo_url,
+            f.address,
             f.phone, f.description, f.website,
             f.created_at, f.updated_at,
         )
@@ -56,25 +56,6 @@ impl FarmRepository {
         .await?
         .unwrap_or(false);
         Ok(exists)
-    }
-
-    pub async fn insert_worker(
-        &self,
-        id: Uuid,
-        email: &str,
-        password_hash: &str,
-        farm_id: Uuid,
-    ) -> Result<(), AppError> {
-        sqlx::query!(
-            r#"INSERT INTO users (id, email, password_hash, role, farm_id) VALUES ($1, $2, $3, 'WORKER', $4)"#,
-            id,
-            email,
-            password_hash,
-            farm_id
-        )
-        .execute(&self.pool)
-        .await?;
-        Ok(())
     }
 
     pub async fn find_by_id(&self, id: Uuid) -> Result<Option<Farm>, AppError> {
@@ -113,15 +94,14 @@ impl FarmRepository {
             UPDATE farms SET
                 name        = $1,
                 address     = $2,
-                photo_url   = $3,
-                phone       = $4,
-                description = $5,
-                website     = $6,
-                updated_at  = $7
-            WHERE id = $8
+                phone       = $3,
+                description = $4,
+                website     = $5,
+                updated_at  = $6
+            WHERE id = $7
             RETURNING *
             "#,
-            f.name, f.address, f.photo_url,
+            f.name, f.address,
             f.phone, f.description, f.website,
             f.updated_at, f.id,
         )

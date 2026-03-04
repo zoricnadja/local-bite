@@ -10,7 +10,6 @@ pub struct Farm {
 
     // Required fields
     pub address: String,
-    pub photo_url: String,
 
     // Optional fields
     pub phone: Option<String>,

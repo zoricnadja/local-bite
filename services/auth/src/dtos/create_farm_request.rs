@@ -6,7 +6,6 @@ pub struct CreateFarmRequest {
 
     // Required
     pub address: String,
-    pub photo_url: String,
 
     // Optional
     pub phone: Option<String>,

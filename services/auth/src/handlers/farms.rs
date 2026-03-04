@@ -10,6 +10,7 @@ use common::{
 };
 
 use crate::dtos::{add_worker_request::AddWorkerRequest, create_farm_request::CreateFarmRequest};
+use crate::dtos::register_request::RegisterRequest;
 use crate::dtos::update_farm_request::UpdateFarmRequest;
 use crate::service::farm_service::FarmService;
 // ── POST /farms ──────────────────────────────────────────────────────────────
@@ -29,7 +30,7 @@ pub async fn add_worker(
     Extension(farm_service): Extension<Arc<FarmService>>,
     AuthClaims(_claims): AuthClaims,
     Path(_farm_id): Path<Uuid>,
-    Json(_payload): Json<AddWorkerRequest>,
+    Json(_payload): Json<RegisterRequest>,
 ) -> Result<impl IntoResponse, AppError> {
     let worker = farm_service.add_worker(&_claims, _farm_id, _payload).await?;
     Ok(ok(worker))
