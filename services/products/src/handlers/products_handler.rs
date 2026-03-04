@@ -12,6 +12,7 @@ use common::{
     middleware::{require_farm, require_role, AuthClaims},
     response::{created, no_content, ok},
 };
+use crate::dtos::decrement_request::DecrementRequest;
 // ── GET /products/farm ─────────────────────────────────────────────────────────────
 
 #[debug_handler]
@@ -121,4 +122,15 @@ pub async fn delete(
 
     _product_service.delete(_id, farm_id).await?;
     Ok(no_content())
+}
+
+#[debug_handler]
+pub async fn decrement_quantity(
+    Extension(product_service): Extension<Arc<ProductService>>,
+    AuthClaims(claims): AuthClaims,
+    Path(product_id): Path<Uuid>,
+    Json(req): Json<DecrementRequest>,
+) -> AppResult<Response> {
+    let updated = product_service.decrement(product_id, req.quantity).await?;
+    Ok(ok(updated))
 }

@@ -122,4 +122,26 @@ impl ProductService {
         }
         Ok(())
     }
+
+    pub async fn decrement(
+        &self,
+        id: Uuid,
+        amount: f64,
+    ) -> AppResult<Product> {
+        if amount <= 0.0 {
+            return Err(AppError::BadRequest("Decrement amount must be > 0".into()));
+        }
+
+        let product = self.product_repository.find_by_id(id).await?;
+
+        let new_qty = &product.quantity - &dec(amount);
+        if new_qty < BigDecimal::from(0) {
+            return Err(AppError::BadRequest(format!(
+                "Insufficient stock for '{}': available {}, requested {}",
+                product.name, product.quantity, amount
+            )));
+        }
+
+        self.product_repository.update_quantity(id, new_qty).await
+    }
 }

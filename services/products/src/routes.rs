@@ -2,9 +2,11 @@ use axum::{
     routing::{get, post},
     Router,
 };
+use axum::routing::patch;
 use tower_http::services::ServeDir;
 
 use crate::handlers::{products_handler, public_handler, qr_handler, image_handler};
+use crate::handlers::products_handler::decrement_quantity;
 
 pub fn product_routes() -> Router {
     Router::new()
@@ -31,6 +33,7 @@ pub fn product_routes() -> Router {
         // QR code
         .route("/{id}/qr",                    get(qr_handler::get_qr))
         .route("/{id}/qr/regenerate",         post(qr_handler::regenerate_qr))
+        .route("/{id}/decrement",     patch(decrement_quantity))
 }
 
 /// Static file serving for uploaded images and QR PNGs.

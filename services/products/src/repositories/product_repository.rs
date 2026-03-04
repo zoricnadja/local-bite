@@ -1,3 +1,4 @@
+use bigdecimal::BigDecimal;
 use sqlx::PgPool;
 use uuid::Uuid;
 
@@ -275,5 +276,24 @@ impl ProductRepository {
         )
             .fetch_one(&self.pool)
             .await?)
+    }
+
+    pub async fn update_quantity(&self, id: Uuid, new_qty: BigDecimal) -> AppResult<Product> {
+        let product = sqlx::query_as!(
+        Product,
+        r#"
+        UPDATE products
+        SET quantity = $1, updated_at = now()
+        WHERE id = $2 AND is_deleted = FALSE
+        RETURNING *
+        "#,
+        new_qty,
+        id,
+    )
+            .fetch_one(&self.pool)
+            .await
+            .map_err(|_| AppError::NotFound(format!("Product {} not found", id)))?;
+
+        Ok(product)
     }
 }

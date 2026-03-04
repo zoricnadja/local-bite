@@ -23,7 +23,7 @@ use crate::dtos::order_item::order_item_response::OrderItemResponse;
 use crate::models::order::Order;
 use crate::models::order_item::OrderItem;
 use crate::models::order_status::OrderStatus;
-use crate::services::product_service::fetch_product;
+use crate::services::product_service::{decrement_product_quantity, fetch_product};
 
 #[derive(Clone)]
 pub struct OrderService {
@@ -108,7 +108,7 @@ impl OrderService {
         req: CreateOrderRequest,
         token: &str,
     ) -> AppResult<CreateOrderResponse> {
-        // Validate items
+        // ── 1. Basic validation ───────────────────────────────────────────────────
         if req.items.is_empty() {
             return Err(AppError::BadRequest("Order must have at least one item".into()));
         }
@@ -120,27 +120,34 @@ impl OrderService {
             }
         }
 
-        // Validate all products concurrently before touching DB
-        let product_futures: Vec<_> = req
-            .items
+        // ── 2. Fetch all products concurrently ────────────────────────────────────
+        let product_futures: Vec<_> = req.items
             .iter()
             .map(|item| fetch_product(item.product_id, token))
             .collect();
 
         let snapshots = futures_join_all(product_futures).await?;
 
-        // Check all products are active
-        for snap in &snapshots {
+        // ── 3. Validate availability + stock ─────────────────────────────────────
+        for (item, snap) in req.items.iter().zip(snapshots.iter()) {
             if !snap.is_active {
                 return Err(AppError::BadRequest(
                     format!("Product '{}' is not currently available", snap.name),
                 ));
             }
+
+            let requested = BigDecimal::from_str(&item.quantity.to_string()).unwrap_or_default();
+            let available = BigDecimal::from_str(&snap.quantity.to_string()).unwrap_or_default();
+            if requested > available {
+                return Err(AppError::BadRequest(format!(
+                    "Insufficient stock for '{}': available {}, requested {}",
+                    snap.name, available, requested
+                )));
+            }
         }
 
-        // Build new items with denormalized product data
-        let new_items: Vec<NewOrderItem> = req
-            .items
+        // ── 4. Build order items ──────────────────────────────────────────────────
+        let new_items: Vec<NewOrderItem> = req.items
             .iter()
             .zip(snapshots.iter())
             .map(|(item, snap)| NewOrderItem {
@@ -154,18 +161,13 @@ impl OrderService {
             })
             .collect();
 
-        // Group items by farm
+        // ── 5. Group by farm + calculate totals ───────────────────────────────────
         let mut by_farm: HashMap<Uuid, Vec<&NewOrderItem>> = HashMap::new();
         for item in &new_items {
             by_farm.entry(item.farm_id).or_default().push(item);
         }
 
-        // Calculate total
-        let total_price: BigDecimal = new_items
-            .iter()
-            .map(|i| &i.unit_price * &i.quantity)
-            .fold(BigDecimal::from(0), |acc, x| acc + x);
-
+        // ── 6. Persist orders in a transaction ───────────────────────────────────
         let mut tx = self.order_repository.pool.begin().await?;
         let mut created_orders: Vec<(Order, Vec<OrderItem>)> = Vec::new();
 
@@ -174,14 +176,14 @@ impl OrderService {
                 .iter()
                 .map(|i| &i.unit_price * &i.quantity)
                 .fold(BigDecimal::from(0), |acc, x| acc + x);
-            let email = _email.to_string();
+
             let order = self.order_repository
                 .insert(
                     &mut tx,
                     *farm_id,
                     req.customer_id.unwrap_or(_id),
                     req.customer_name.as_deref(),
-                    req.customer_email.clone().unwrap_or(email),
+                    req.customer_email.clone().unwrap_or_else(|| _email.to_string()),
                     req.notes.as_deref(),
                     &farm_total,
                 )
@@ -196,6 +198,24 @@ impl OrderService {
 
         tx.commit().await?;
 
+        // ── 7. Decrement stock after successful commit ────────────────────────────
+        let decrement_futures: Vec<_> = req.items
+            .iter()
+            .map(|item| decrement_product_quantity(item.product_id, item.quantity, token))
+            .collect();
+
+        for (item, result) in req.items.iter().zip(futures::future::join_all(decrement_futures).await) {
+            if let Err(e) = result {
+                tracing::error!(
+                product_id = %item.product_id,
+                quantity   = %item.quantity,
+                error      = %e,
+                "Failed to decrement product quantity after order commit"
+            );
+            }
+        }
+
+        // ── 8. Return response ────────────────────────────────────────────────────
         let orders = created_orders
             .into_iter()
             .map(|(o, i)| map_order_response(o, i))
@@ -203,7 +223,6 @@ impl OrderService {
 
         Ok(CreateOrderResponse { orders })
     }
-
     // ── Update status ─────────────────────────────────────────────────────────
 
     pub async fn update_status(
