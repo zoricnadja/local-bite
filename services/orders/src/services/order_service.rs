@@ -1,17 +1,9 @@
-use std::collections::HashMap;
 use bigdecimal::BigDecimal;
+use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::Arc;
 use uuid::Uuid;
 
-use common::errors::{AppError, AppResult};
-use common::paginated_response::PaginatedResponse;
-use crate::{
-    repositories::{
-        order_item_repository::OrderItemRepository,
-        order_repository::{bigdecimal_to_f64, OrderRepository},
-    },
-};
 use crate::dtos::analytics::analytics_response::{AnalyticsResponse, MonthlyRevenue};
 use crate::dtos::order::create_order_request::CreateOrderRequest;
 use crate::dtos::order::create_order_response::CreateOrderResponse;
@@ -23,7 +15,13 @@ use crate::dtos::order_item::order_item_response::OrderItemResponse;
 use crate::models::order::Order;
 use crate::models::order_item::OrderItem;
 use crate::models::order_status::OrderStatus;
+use crate::repositories::{
+    order_item_repository::OrderItemRepository,
+    order_repository::{bigdecimal_to_f64, OrderRepository},
+};
 use crate::services::product_service::{decrement_product_quantity, fetch_product};
+use common::errors::{AppError, AppResult};
+use common::paginated_response::PaginatedResponse;
 
 #[derive(Clone)]
 pub struct OrderService {
@@ -32,8 +30,14 @@ pub struct OrderService {
 }
 
 impl OrderService {
-    pub fn new(order_repository: Arc<OrderRepository>, order_item_repository: Arc<OrderItemRepository>) -> Self {
-        Self { order_repository, order_item_repository }
+    pub fn new(
+        order_repository: Arc<OrderRepository>,
+        order_item_repository: Arc<OrderItemRepository>,
+    ) -> Self {
+        Self {
+            order_repository,
+            order_item_repository,
+        }
     }
 
     // ── List orders ───────────────────────────────────────────────────────────
@@ -43,7 +47,6 @@ impl OrderService {
         farm_id: Uuid,
         q: &ListOrdersQuery,
     ) -> AppResult<PaginatedResponse<OrderResponse>> {
-
         let (orders, total) = tokio::try_join!(
             self.order_repository.find_all(farm_id, q),
             self.order_repository.count(farm_id, q),
@@ -51,7 +54,10 @@ impl OrderService {
 
         let mut responses = Vec::with_capacity(orders.len());
         for order in orders {
-            let items = self.order_item_repository.find_by_order_id(order.id).await?;
+            let items = self
+                .order_item_repository
+                .find_by_order_id(order.id)
+                .await?;
             responses.push(map_order_response(order, items));
         }
 
@@ -68,7 +74,6 @@ impl OrderService {
         _id: Uuid,
         q: &ListOrdersQuery,
     ) -> AppResult<PaginatedResponse<OrderResponse>> {
-
         let (orders, total) = tokio::try_join!(
             self.order_repository.find_all_by_user_id(_id, q),
             self.order_repository.count(_id, q),
@@ -76,7 +81,10 @@ impl OrderService {
         tracing::info!("{:?}", orders);
         let mut responses = Vec::with_capacity(orders.len());
         for order in orders {
-            let items = self.order_item_repository.find_by_order_id(order.id).await?;
+            let items = self
+                .order_item_repository
+                .find_by_order_id(order.id)
+                .await?;
             responses.push(map_order_response(order, items));
         }
 
@@ -90,12 +98,12 @@ impl OrderService {
 
     // ── Get single order ──────────────────────────────────────────────────────
 
-    pub async fn get_order(
-        &self,
-        id: Uuid,
-    ) -> AppResult<OrderResponse> {
+    pub async fn get_order(&self, id: Uuid) -> AppResult<OrderResponse> {
         let order = self.order_repository.find_by_id(id).await?;
-        let items = self.order_item_repository.find_by_order_id(order.id).await?;
+        let items = self
+            .order_item_repository
+            .find_by_order_id(order.id)
+            .await?;
         Ok(map_order_response(order, items))
     }
 
@@ -110,18 +118,22 @@ impl OrderService {
     ) -> AppResult<CreateOrderResponse> {
         // ── 1. Basic validation ───────────────────────────────────────────────────
         if req.items.is_empty() {
-            return Err(AppError::BadRequest("Order must have at least one item".into()));
+            return Err(AppError::BadRequest(
+                "Order must have at least one item".into(),
+            ));
         }
         for item in &req.items {
             if item.quantity <= 0.0 {
-                return Err(AppError::BadRequest(
-                    format!("quantity must be > 0 for product {}", item.product_id),
-                ));
+                return Err(AppError::BadRequest(format!(
+                    "quantity must be > 0 for product {}",
+                    item.product_id
+                )));
             }
         }
 
         // ── 2. Fetch all products concurrently ────────────────────────────────────
-        let product_futures: Vec<_> = req.items
+        let product_futures: Vec<_> = req
+            .items
             .iter()
             .map(|item| fetch_product(item.product_id, token))
             .collect();
@@ -131,9 +143,10 @@ impl OrderService {
         // ── 3. Validate availability + stock ─────────────────────────────────────
         for (item, snap) in req.items.iter().zip(snapshots.iter()) {
             if !snap.is_active {
-                return Err(AppError::BadRequest(
-                    format!("Product '{}' is not currently available", snap.name),
-                ));
+                return Err(AppError::BadRequest(format!(
+                    "Product '{}' is not currently available",
+                    snap.name
+                )));
             }
 
             let requested = BigDecimal::from_str(&item.quantity.to_string()).unwrap_or_default();
@@ -147,17 +160,18 @@ impl OrderService {
         }
 
         // ── 4. Build order items ──────────────────────────────────────────────────
-        let new_items: Vec<NewOrderItem> = req.items
+        let new_items: Vec<NewOrderItem> = req
+            .items
             .iter()
             .zip(snapshots.iter())
             .map(|(item, snap)| NewOrderItem {
-                product_id:   snap.id,
+                product_id: snap.id,
                 product_name: snap.name.clone(),
                 product_type: snap.product_type.clone(),
-                farm_id:      snap.farm_id.unwrap(),
-                unit_price:   BigDecimal::from_str(&snap.price.to_string()).unwrap_or_default(),
-                quantity:     BigDecimal::from_str(&item.quantity.to_string()).unwrap_or_default(),
-                unit:         snap.unit.clone(),
+                farm_id: snap.farm_id.unwrap(),
+                unit_price: BigDecimal::from_str(&snap.price.to_string()).unwrap_or_default(),
+                quantity: BigDecimal::from_str(&item.quantity.to_string()).unwrap_or_default(),
+                unit: snap.unit.clone(),
             })
             .collect();
 
@@ -177,19 +191,23 @@ impl OrderService {
                 .map(|i| &i.unit_price * &i.quantity)
                 .fold(BigDecimal::from(0), |acc, x| acc + x);
 
-            let order = self.order_repository
+            let order = self
+                .order_repository
                 .insert(
                     &mut tx,
                     *farm_id,
                     req.customer_id.unwrap_or(_id),
                     req.customer_name.as_deref(),
-                    req.customer_email.clone().unwrap_or_else(|| _email.to_string()),
+                    req.customer_email
+                        .clone()
+                        .unwrap_or_else(|| _email.to_string()),
                     req.notes.as_deref(),
                     &farm_total,
                 )
                 .await?;
 
-            let items = self.order_item_repository
+            let items = self
+                .order_item_repository
                 .insert_batch(&mut tx, order.id, farm_items)
                 .await?;
 
@@ -199,19 +217,24 @@ impl OrderService {
         tx.commit().await?;
 
         // ── 7. Decrement stock after successful commit ────────────────────────────
-        let decrement_futures: Vec<_> = req.items
+        let decrement_futures: Vec<_> = req
+            .items
             .iter()
             .map(|item| decrement_product_quantity(item.product_id, item.quantity, token))
             .collect();
 
-        for (item, result) in req.items.iter().zip(futures::future::join_all(decrement_futures).await) {
+        for (item, result) in req
+            .items
+            .iter()
+            .zip(futures::future::join_all(decrement_futures).await)
+        {
             if let Err(e) = result {
                 tracing::error!(
-                product_id = %item.product_id,
-                quantity   = %item.quantity,
-                error      = %e,
-                "Failed to decrement product quantity after order commit"
-            );
+                    product_id = %item.product_id,
+                    quantity   = %item.quantity,
+                    error      = %e,
+                    "Failed to decrement product quantity after order commit"
+                );
             }
         }
 
@@ -242,7 +265,9 @@ impl OrderService {
 
         // Only FARM_OWNER can cancel
         if next_status == OrderStatus::Cancelled && caller_role != "FARM_OWNER" {
-            return Err(AppError::Forbidden("Only FARM_OWNER can cancel orders".into()));
+            return Err(AppError::Forbidden(
+                "Only FARM_OWNER can cancel orders".into(),
+            ));
         }
 
         if !current_status.can_transition_to(&next_status) {
@@ -253,11 +278,13 @@ impl OrderService {
             )));
         }
 
-        let updated = self.order_repository
+        let updated = self
+            .order_repository
             .update_status(id, farm_id, next_status.as_str())
             .await?;
 
-        let items = self.order_item_repository
+        let items = self
+            .order_item_repository
             .find_by_order_id(updated.id)
             .await?;
 
@@ -270,7 +297,9 @@ impl OrderService {
         self.update_status(
             id,
             farm_id,
-            UpdateStatusRequest { status: "CANCELLED".into() },
+            UpdateStatusRequest {
+                status: "CANCELLED".into(),
+            },
             "FARM_OWNER",
         )
         .await
@@ -288,9 +317,7 @@ impl OrderService {
             ));
         }
 
-        self.order_repository
-            .soft_delete(id, farm_id)
-            .await
+        self.order_repository.soft_delete(id, farm_id).await
     }
 
     // ── Analytics ─────────────────────────────────────────────────────────────
@@ -301,19 +328,22 @@ impl OrderService {
         from: &str,
         to: &str,
     ) -> AppResult<AnalyticsResponse> {
-
-        let (total_revenue, total_orders, orders_by_status, monthly_raw, top_products) =
-            tokio::try_join!(
-                self.order_repository.total_revenue(farm_id, from, to),
-                 self.order_repository.total_orders(farm_id, from, to),
-                 self.order_repository.orders_by_status(farm_id, from, to),
-                 self.order_repository.revenue_by_month(farm_id, from, to),
-                 self.order_item_repository.top_products(farm_id, 10, from, to),
-            )?;
+        let (total_revenue, total_orders, orders_by_status, monthly_raw, top_products) = tokio::try_join!(
+            self.order_repository.total_revenue(farm_id, from, to),
+            self.order_repository.total_orders(farm_id, from, to),
+            self.order_repository.orders_by_status(farm_id, from, to),
+            self.order_repository.revenue_by_month(farm_id, from, to),
+            self.order_item_repository
+                .top_products(farm_id, 10, from, to),
+        )?;
 
         let revenue_by_month = monthly_raw
             .into_iter()
-            .map(|(month, revenue, orders)| MonthlyRevenue { month, revenue, orders })
+            .map(|(month, revenue, orders)| MonthlyRevenue {
+                month,
+                revenue,
+                orders,
+            })
             .collect();
 
         Ok(AnalyticsResponse {
@@ -330,27 +360,27 @@ impl OrderService {
 
 fn map_order_response(order: Order, items: Vec<OrderItem>) -> OrderResponse {
     OrderResponse {
-        id:             order.id,
-        farm_id:        order.farm_id,
-        customer_id:    order.customer_id,
-        customer_name:  order.customer_name,
+        id: order.id,
+        farm_id: order.farm_id,
+        customer_id: order.customer_id,
+        customer_name: order.customer_name,
         customer_email: order.customer_email,
-        status:         order.status,
-        total_price:    bigdecimal_to_f64(&order.total_price),
-        notes:          order.notes,
-        created_at:     order.created_at,
-        updated_at:     order.updated_at,
+        status: order.status,
+        total_price: bigdecimal_to_f64(&order.total_price),
+        notes: order.notes,
+        created_at: order.created_at,
+        updated_at: order.updated_at,
         items: items
             .into_iter()
             .map(|i| OrderItemResponse {
-                id:           i.id,
-                product_id:   i.product_id,
+                id: i.id,
+                product_id: i.product_id,
                 product_name: i.product_name,
                 product_type: i.product_type,
-                unit_price:   bigdecimal_to_f64(&i.unit_price),
-                quantity:     bigdecimal_to_f64(&i.quantity),
-                unit:         i.unit,
-                subtotal:     bigdecimal_to_f64(&i.subtotal),
+                unit_price: bigdecimal_to_f64(&i.unit_price),
+                quantity: bigdecimal_to_f64(&i.quantity),
+                unit: i.unit,
+                subtotal: bigdecimal_to_f64(&i.subtotal),
             })
             .collect(),
     }

@@ -2,10 +2,10 @@ use std::path::Path;
 use std::sync::Arc;
 use uuid::Uuid;
 
-use common::errors::{AppError, AppResult};
 use crate::models::product::Product;
 use crate::repositories::product_repository::ProductRepository;
 use crate::utils::image_utils;
+use common::errors::{AppError, AppResult};
 
 #[derive(Clone)]
 pub struct ImageService {
@@ -15,7 +15,10 @@ pub struct ImageService {
 
 impl ImageService {
     pub fn new(product_repository: Arc<ProductRepository>, uploads_dir: String) -> Self {
-        Self { product_repository, uploads_dir }
+        Self {
+            product_repository,
+            uploads_dir,
+        }
     }
 
     pub async fn upload(
@@ -31,7 +34,10 @@ impl ImageService {
             ));
         }
 
-        let existing = self.product_repository.find_by_id_and_farm(id, farm_id).await?;
+        let existing = self
+            .product_repository
+            .find_by_id_and_farm(id, farm_id)
+            .await?;
 
         if let Some(old_path) = &existing.image_path {
             image_utils::delete_image(old_path, &self.uploads_dir);
@@ -40,19 +46,16 @@ impl ImageService {
         let relative_path = image_utils::save_image(&bytes, &self.uploads_dir)
             .map_err(|e| AppError::BadRequest(e.to_string()))?;
 
-        self.product_repository.set_image_path(id, farm_id, &relative_path).await
+        self.product_repository
+            .set_image_path(id, farm_id, &relative_path)
+            .await
     }
 
-    pub async fn get_image_path(
-        &self,
-        id: Uuid,
-    ) -> AppResult<std::path::PathBuf> {
+    pub async fn get_image_path(&self, id: Uuid) -> AppResult<std::path::PathBuf> {
         let product = self.product_repository.find_by_id(id).await?;
         let relative = match &product.image_path {
             Some(p) => p.clone(),
-            None => {
-                Err(AppError::NotFound("product not found".into()))?
-            }
+            None => Err(AppError::NotFound("product not found".into()))?,
         };
 
         Ok(Path::new(&self.uploads_dir).join(relative))

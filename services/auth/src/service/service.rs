@@ -1,16 +1,16 @@
-use argon2::{Argon2, PasswordHasher, PasswordVerifier, password_hash::SaltString, PasswordHash};
-use jsonwebtoken::{encode, EncodingKey, Header};
-use uuid::Uuid;
-use std::sync::Arc;
-use chrono::Utc;
-use common::errors::AppError;
-use common::jwt::Claims;
-use common::jwt::decode_jwt;
-use common::models::Role;
-use crate::models::user::User;
-use crate::repository::repository::UserRepository;
 use crate::dtos::login_request::LoginRequest;
 use crate::dtos::register_request::RegisterRequest;
+use crate::models::user::User;
+use crate::repository::repository::UserRepository;
+use argon2::{password_hash::SaltString, Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
+use chrono::Utc;
+use common::errors::AppError;
+use common::jwt::decode_jwt;
+use common::jwt::Claims;
+use common::models::Role;
+use jsonwebtoken::{encode, EncodingKey, Header};
+use std::sync::Arc;
+use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct AuthService {
@@ -20,11 +20,19 @@ pub struct AuthService {
 
 impl AuthService {
     pub fn new(user_repo: Arc<UserRepository>, jwt_secret: String) -> Self {
-        Self { user_repo, jwt_secret }
+        Self {
+            user_repo,
+            jwt_secret,
+        }
     }
 
     pub async fn register_user(&self, payload: RegisterRequest) -> Result<String, AppError> {
-        if self.user_repo.find_by_email(&payload.email).await?.is_some() {
+        if self
+            .user_repo
+            .find_by_email(&payload.email)
+            .await?
+            .is_some()
+        {
             return Err(AppError::Conflict("Email already in use".into()));
         }
 
@@ -84,7 +92,8 @@ impl AuthService {
     }
 
     pub async fn login(&self, payload: LoginRequest) -> Result<String, AppError> {
-        let user = self.user_repo
+        let user = self
+            .user_repo
             .find_by_email(&payload.email)
             .await?
             .ok_or(AppError::Unauthorized("Invalid email or password".into()))?;
@@ -98,7 +107,8 @@ impl AuthService {
     }
 
     pub async fn get_user(&self, user_id: Uuid) -> Result<User, AppError> {
-        self.user_repo.find_by_id(user_id)
+        self.user_repo
+            .find_by_id(user_id)
             .await?
             .ok_or(AppError::NotFound("User not found".into()))
     }

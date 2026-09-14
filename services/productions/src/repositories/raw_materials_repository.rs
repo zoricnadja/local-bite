@@ -1,13 +1,13 @@
 use sqlx::PgPool;
 use uuid::Uuid;
 
-use common::errors::AppResult;
 use crate::models::batch_raw_material::BatchRawMaterial;
 use crate::models::insert_raw_material_params::InsertRawMaterialParams;
+use common::errors::AppResult;
 
 #[derive(Clone)]
 pub struct RawMaterialsRepository {
-    pub pool: PgPool
+    pub pool: PgPool,
 }
 
 impl RawMaterialsRepository {
@@ -26,15 +26,11 @@ impl RawMaterialsRepository {
             "#,
             batch_id
         )
-            .fetch_all(&self.pool)
-            .await?)
+        .fetch_all(&self.pool)
+        .await?)
     }
 
-    pub async fn exists(
-        &self,
-        batch_id: Uuid,
-        raw_material_id: Uuid,
-    ) -> AppResult<bool> {
+    pub async fn exists(&self, batch_id: Uuid, raw_material_id: Uuid) -> AppResult<bool> {
         Ok(sqlx::query_scalar!(
             "SELECT EXISTS(SELECT 1 FROM batch_raw_materials WHERE batch_id = $1 AND raw_material_id = $2)",
             batch_id, raw_material_id
@@ -56,13 +52,19 @@ impl RawMaterialsRepository {
             RETURNING id, batch_id, farm_id, raw_material_id, raw_material_name,
                       material_type, quantity_used, unit, origin, supplier
             "#,
-            p.id, p.batch_id, p.farm_id,
-            p.raw_material_id, p.raw_material_name, p.material_type,
-            p.quantity_used, p.unit,
-            p.origin.as_deref(), p.supplier.as_deref()
+            p.id,
+            p.batch_id,
+            p.farm_id,
+            p.raw_material_id,
+            p.raw_material_name,
+            p.material_type,
+            p.quantity_used,
+            p.unit,
+            p.origin.as_deref(),
+            p.supplier.as_deref()
         )
-            .fetch_one(&self.pool)
-            .await?)
+        .fetch_one(&self.pool)
+        .await?)
     }
 
     pub async fn delete(

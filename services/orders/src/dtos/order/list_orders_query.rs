@@ -2,10 +2,10 @@ use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 pub struct ListOrdersQuery {
-    pub page:     Option<i64>,
-    pub limit:    Option<i64>,
-    pub status:   Option<String>,
-    pub search:   Option<String>,   // searches customer name/email
+    pub page: Option<i64>,
+    pub limit: Option<i64>,
+    pub status: Option<String>,
+    pub search: Option<String>, // searches customer name/email
 }
 
 impl ListOrdersQuery {

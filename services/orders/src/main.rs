@@ -1,18 +1,18 @@
-use std::sync::Arc;
-use axum::{routing::get, Extension, Router};
-use tower_http::cors::CorsLayer;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use crate::repositories::order_item_repository::OrderItemRepository;
 use crate::repositories::order_repository::OrderRepository;
 use crate::services::order_service::OrderService;
+use axum::{routing::get, Extension, Router};
+use std::sync::Arc;
+use tower_http::cors::CorsLayer;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 mod db;
+mod dtos;
+mod handlers;
 mod models;
 mod repositories;
-mod services;
-mod dtos;
 mod routes;
-mod handlers;
+mod services;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -20,8 +20,7 @@ async fn main() -> anyhow::Result<()> {
 
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new(
-            std::env::var("RUST_LOG")
-                .unwrap_or_else(|_| "orders=debug,tower_http=debug".into()),
+            std::env::var("RUST_LOG").unwrap_or_else(|_| "orders=debug,tower_http=debug".into()),
         ))
         .with(tracing_subscriber::fmt::layer())
         .init();
@@ -29,7 +28,10 @@ async fn main() -> anyhow::Result<()> {
     let pool = db::create_pool().await?;
     let order_repository = Arc::new(OrderRepository::new(pool.clone()));
     let order_item_repository = Arc::new(OrderItemRepository::new(pool.clone()));
-    let order_service = Arc::new(OrderService::new(order_repository.clone(), order_item_repository.clone()));
+    let order_service = Arc::new(OrderService::new(
+        order_repository.clone(),
+        order_item_repository.clone(),
+    ));
 
     let app = Router::new()
         .route("/health", get(|| async { "ok" }))

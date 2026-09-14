@@ -1,7 +1,7 @@
 use crate::models::user::{User, UserRow};
+use common::errors::AppError;
 use sqlx::{PgPool, Postgres, Transaction};
 use uuid::Uuid;
-use common::errors::AppError;
 
 #[derive(Clone)]
 pub struct UserRepository {
@@ -27,33 +27,34 @@ impl UserRepository {
                  $9, $10, $11,
                  $12, $13)
             "#,
-            u.id, u.email, u.password_hash, u.role.as_str(), u.farm_id,
-            u.first_name, u.last_name, u.address,
-            u.phone, u.photo_url, u.date_of_birth,
-            u.created_at, u.updated_at,
+            u.id,
+            u.email,
+            u.password_hash,
+            u.role.as_str(),
+            u.farm_id,
+            u.first_name,
+            u.last_name,
+            u.address,
+            u.phone,
+            u.photo_url,
+            u.date_of_birth,
+            u.created_at,
+            u.updated_at,
         )
-            .execute(&self.pool)
-            .await?;
+        .execute(&self.pool)
+        .await?;
         Ok(())
     }
 
     pub async fn find_by_id(&self, id: Uuid) -> Result<Option<User>, AppError> {
-        let row = sqlx::query_as!(
-            UserRow,
-            "SELECT * FROM users WHERE id = $1",
-            id
-        )
+        let row = sqlx::query_as!(UserRow, "SELECT * FROM users WHERE id = $1", id)
             .fetch_optional(&self.pool)
             .await?;
         Ok(row.map(User::from))
     }
 
     pub async fn find_by_email(&self, email: &str) -> Result<Option<User>, AppError> {
-        let row = sqlx::query_as!(
-            UserRow,
-            "SELECT * FROM users WHERE email = $1",
-            email
-        )
+        let row = sqlx::query_as!(UserRow, "SELECT * FROM users WHERE email = $1", email)
             .fetch_optional(&self.pool)
             .await?;
         Ok(row.map(User::from))
@@ -85,13 +86,21 @@ impl UserRepository {
             WHERE id = $12
             RETURNING *
             "#,
-            u.email, u.password_hash, u.role.as_str(), u.farm_id,
-            u.first_name, u.last_name, u.address,
-            u.phone, u.photo_url, u.date_of_birth,
-            u.updated_at, u.id,
+            u.email,
+            u.password_hash,
+            u.role.as_str(),
+            u.farm_id,
+            u.first_name,
+            u.last_name,
+            u.address,
+            u.phone,
+            u.photo_url,
+            u.date_of_birth,
+            u.updated_at,
+            u.id,
         )
-            .fetch_one(&self.pool)
-            .await?;
+        .fetch_one(&self.pool)
+        .await?;
         Ok(User::from(row))
     }
 
@@ -102,29 +111,24 @@ impl UserRepository {
         Ok(())
     }
 
-    pub async fn set_farm_id(
-        &self,
-        user_id: Uuid,
-        farm_id: Option<Uuid>,
-    ) -> Result<(), AppError> {
+    pub async fn set_farm_id(&self, user_id: Uuid, farm_id: Option<Uuid>) -> Result<(), AppError> {
         sqlx::query!(
             r#"UPDATE users SET farm_id = $1 WHERE id = $2"#,
             farm_id,
             user_id
         )
-            .execute(&self.pool)
-            .await?;
+        .execute(&self.pool)
+        .await?;
         Ok(())
     }
-
 
     pub async fn clear_farm_id(&self, user_id: Uuid) -> Result<(), AppError> {
         sqlx::query!(
             "UPDATE users SET farm_id = NULL, updated_at = now() WHERE id = $1",
             user_id
         )
-            .execute(&self.pool)
-            .await?;
+        .execute(&self.pool)
+        .await?;
         Ok(())
     }
 }

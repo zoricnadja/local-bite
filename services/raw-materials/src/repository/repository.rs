@@ -2,9 +2,9 @@ use bigdecimal::BigDecimal;
 use sqlx::PgPool;
 use uuid::Uuid;
 
-use common::errors::{AppError, AppResult};
 use crate::models::query::ListQuery;
 use crate::models::raw_material::RawMaterial;
+use common::errors::{AppError, AppResult};
 
 #[derive(Clone)]
 pub struct RawMaterialRepository {
@@ -40,10 +40,14 @@ impl RawMaterialRepository {
             ORDER  BY created_at DESC
             LIMIT  $4 OFFSET $5
             "#,
-            farm_id, type_filter, search_filter, limit, offset
+            farm_id,
+            type_filter,
+            search_filter,
+            limit,
+            offset
         )
-            .fetch_all(&self.pool)
-            .await?;
+        .fetch_all(&self.pool)
+        .await?;
 
         let total: i64 = sqlx::query_scalar!(
             r#"
@@ -52,20 +56,18 @@ impl RawMaterialRepository {
               AND  ($2 = '' OR material_type ILIKE $2)
               AND  ($3 = '' OR name ILIKE '%' || $3 || '%')
             "#,
-            farm_id, type_filter, search_filter
+            farm_id,
+            type_filter,
+            search_filter
         )
-            .fetch_one(&self.pool)
-            .await?
-            .unwrap_or(0);
+        .fetch_one(&self.pool)
+        .await?
+        .unwrap_or(0);
 
         Ok((items, total))
     }
 
-    pub async fn find_by_id(
-        &self,
-        id: Uuid,
-        farm_id: Uuid,
-    ) -> AppResult<RawMaterial> {
+    pub async fn find_by_id(&self, id: Uuid, farm_id: Uuid) -> AppResult<RawMaterial> {
         sqlx::query_as!(
             RawMaterial,
             r#"
@@ -75,11 +77,12 @@ impl RawMaterialRepository {
             FROM   raw_materials
             WHERE  id = $1 AND farm_id = $2 AND is_deleted = FALSE
             "#,
-            id, farm_id
+            id,
+            farm_id
         )
-            .fetch_optional(&self.pool)
-            .await?
-            .ok_or_else(|| AppError::NotFound(format!("Raw material {} not found", id)))
+        .fetch_optional(&self.pool)
+        .await?
+        .ok_or_else(|| AppError::NotFound(format!("Raw material {} not found", id)))
     }
 
     pub async fn insert(
@@ -108,11 +111,21 @@ impl RawMaterialRepository {
                       supplier, origin, harvest_date, expiry_date, notes,
                       low_stock_threshold, is_deleted, created_at, updated_at
             "#,
-            id, farm_id, name, material_type, quantity, unit,
-            supplier, origin, harvest_date, expiry_date, notes, low_stock_threshold,
+            id,
+            farm_id,
+            name,
+            material_type,
+            quantity,
+            unit,
+            supplier,
+            origin,
+            harvest_date,
+            expiry_date,
+            notes,
+            low_stock_threshold,
         )
-            .fetch_one(&self.pool)
-            .await?;
+        .fetch_one(&self.pool)
+        .await?;
 
         Ok(material)
     }
@@ -151,12 +164,21 @@ impl RawMaterialRepository {
                       supplier, origin, harvest_date, expiry_date, notes,
                       low_stock_threshold, is_deleted, created_at, updated_at
             "#,
-            name, material_type, quantity, unit,
-            supplier, origin, harvest_date, expiry_date,
-            notes, low_stock_threshold, id, farm_id
+            name,
+            material_type,
+            quantity,
+            unit,
+            supplier,
+            origin,
+            harvest_date,
+            expiry_date,
+            notes,
+            low_stock_threshold,
+            id,
+            farm_id
         )
-            .fetch_one(&self.pool)
-            .await?;
+        .fetch_one(&self.pool)
+        .await?;
 
         Ok(updated)
     }
@@ -189,8 +211,8 @@ impl RawMaterialRepository {
             "#,
             farm_id
         )
-            .fetch_all(&self.pool)
-            .await?;
+        .fetch_all(&self.pool)
+        .await?;
 
         Ok(items)
     }
@@ -214,10 +236,12 @@ impl RawMaterialRepository {
                       supplier, origin, harvest_date, expiry_date, notes,
                       low_stock_threshold, is_deleted, created_at, updated_at
             "#,
-            delta, id, farm_id
+            delta,
+            id,
+            farm_id
         )
-            .fetch_optional(&self.pool)
-            .await?;
+        .fetch_optional(&self.pool)
+        .await?;
 
         Ok(result)
     }

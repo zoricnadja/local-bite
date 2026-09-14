@@ -6,8 +6,7 @@ use crate::dtos::product::product_api_data::ProductApiData;
 use crate::dtos::product::product_api_response::ProductApiResponse;
 
 fn base_url() -> String {
-    std::env::var("PRODUCTS_SERVICE_URL")
-        .unwrap_or_else(|_| "http://products-service:3003".into())
+    std::env::var("PRODUCTS_SERVICE_URL").unwrap_or_else(|_| "http://products-service:3003".into())
 }
 
 // ── Fetch single product ──────────────────────────────────────────────────────
@@ -29,11 +28,15 @@ pub async fn fetch_product(product_id: Uuid, token: &str) -> anyhow::Result<Prod
     if !resp.status().is_success() {
         return Err(anyhow!(
             "Product service returned {} for product {}",
-            resp.status(), product_id
+            resp.status(),
+            product_id
         ));
     }
 
-    let body: ProductApiResponse = resp.json().await.context("Failed to parse product response")?;
+    let body: ProductApiResponse = resp
+        .json()
+        .await
+        .context("Failed to parse product response")?;
     Ok(body.data)
 }
 
@@ -63,7 +66,8 @@ pub async fn decrement_product_quantity(
     if !resp.status().is_success() {
         return Err(anyhow!(
             "Failed to decrement quantity for product {}: {}",
-            product_id, resp.status()
+            product_id,
+            resp.status()
         ));
     }
 

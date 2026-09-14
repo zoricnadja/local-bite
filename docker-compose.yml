@@ -1,4 +1,13 @@
 services:
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: local-bite-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
   pgadmin:
     image: dpage/pgadmin4
     container_name: pgadmin
@@ -108,11 +117,17 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       RUST_LOG: ${PRODUCTS_RUST_LOG}
       PORT: ${PRODUCTS_PORT}
+      PUBLIC_TRACE_URL: ${PUBLIC_TRACE_URL}
+      RABBITMQ_MANAGEMENT_URL: ${RABBITMQ_MANAGEMENT_URL}
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
     ports:
       - ${PRODUCTS_PORT}:${PRODUCTS_PORT}
     depends_on:
       products-db:
         condition: service_healthy
+      rabbitmq:
+        condition: service_started
 
   productions-db:
     image: postgres:15
@@ -200,12 +215,12 @@ services:
 
   frontend:
     build:
-      context: ./frontend
+      context: ./frontend/local-bite-frontend
       dockerfile: Dockerfile
     ports:
       - "4200"
     volumes:
-      - ./frontend/src:/app/src
+      - ./frontend/local-bite-frontend/src:/app/src
     environment:
       - NODE_ENV=${NODE_ENV}
 

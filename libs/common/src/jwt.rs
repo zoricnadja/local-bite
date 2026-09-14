@@ -20,7 +20,10 @@ pub fn encode_jwt(claims: &Claims, secret: &str) -> Result<String, jsonwebtoken:
     )
 }
 
-pub fn decode_jwt(token: &str, secret: &str) -> Result<TokenData<Claims>, jsonwebtoken::errors::Error> {
+pub fn decode_jwt(
+    token: &str,
+    secret: &str,
+) -> Result<TokenData<Claims>, jsonwebtoken::errors::Error> {
     decode::<Claims>(
         token,
         &DecodingKey::from_secret(secret.as_bytes()),

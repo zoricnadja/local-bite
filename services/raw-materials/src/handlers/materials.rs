@@ -1,17 +1,22 @@
-use axum::{debug_handler, extract::{Path, Query}, response::Response, Extension, Json};
+use axum::{
+    debug_handler,
+    extract::{Path, Query},
+    response::Response,
+    Extension, Json,
+};
 use std::sync::Arc;
 use uuid::Uuid;
 
+use crate::dtos::adjust_quantity_request::AdjustQuantityRequest;
+use crate::dtos::create_raw_material_request::CreateRawMaterialRequest;
+use crate::dtos::update_raw_material_request::UpdateRawMaterialRequest;
+use crate::models::query::ListQuery;
+use crate::service::service::RawMaterialService;
 use common::{
     errors::AppResult,
     middleware::{require_farm, require_role, AuthClaims},
     response::{created, no_content, ok},
 };
-use crate::dtos::adjust_quantity_request::AdjustQuantityRequest;
-use crate::service::service::RawMaterialService;
-use crate::dtos::create_raw_material_request::CreateRawMaterialRequest;
-use crate::dtos::update_raw_material_request::UpdateRawMaterialRequest;
-use crate::models::query::ListQuery;
 
 #[debug_handler]
 pub async fn list(
@@ -95,6 +100,8 @@ pub async fn adjust_quantity(
 ) -> AppResult<Response> {
     require_role(&_claims, &["FARM_OWNER", "WORKER"])?;
     let farm_id = require_farm(&_claims)?;
-    let updated = _raw_material_service.adjust_quantity(_id, farm_id, _req).await?;
+    let updated = _raw_material_service
+        .adjust_quantity(_id, farm_id, _req)
+        .await?;
     Ok(ok(updated))
 }

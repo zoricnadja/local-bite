@@ -1,6 +1,6 @@
-use std::sync::Arc;
-use axum::{debug_handler, extract::{Path}, response::IntoResponse, Extension, Json};
+use axum::{debug_handler, extract::Path, response::IntoResponse, Extension, Json};
 use http::StatusCode;
+use std::sync::Arc;
 use uuid::Uuid;
 
 use common::{
@@ -9,9 +9,9 @@ use common::{
     response::{created, ok},
 };
 
-use crate::dtos::{add_worker_request::AddWorkerRequest, create_farm_request::CreateFarmRequest};
 use crate::dtos::register_request::RegisterRequest;
 use crate::dtos::update_farm_request::UpdateFarmRequest;
+use crate::dtos::{add_worker_request::AddWorkerRequest, create_farm_request::CreateFarmRequest};
 use crate::service::farm_service::FarmService;
 // ── POST /farms ──────────────────────────────────────────────────────────────
 
@@ -32,7 +32,9 @@ pub async fn add_worker(
     Path(_farm_id): Path<Uuid>,
     Json(_payload): Json<RegisterRequest>,
 ) -> Result<impl IntoResponse, AppError> {
-    let worker = farm_service.add_worker(&_claims, _farm_id, _payload).await?;
+    let worker = farm_service
+        .add_worker(&_claims, _farm_id, _payload)
+        .await?;
     Ok(ok(worker))
 }
 
@@ -74,7 +76,9 @@ pub async fn update_farm(
     Path(_farm_id): Path<Uuid>,
     Json(_payload): Json<UpdateFarmRequest>,
 ) -> Result<impl IntoResponse, AppError> {
-    let farm = _farm_service.update_farm(&_claims, _farm_id, _payload).await?;
+    let farm = _farm_service
+        .update_farm(&_claims, _farm_id, _payload)
+        .await?;
     Ok(ok(farm))
 }
 

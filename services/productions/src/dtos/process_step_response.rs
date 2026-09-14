@@ -3,10 +3,10 @@ use uuid::Uuid;
 
 #[derive(Debug, Serialize)]
 pub struct ProcessStepResponse {
-    pub id:             Uuid,
-    pub step_order:     i32,
-    pub name:           String,
-    pub description:    Option<String>,
+    pub id: Uuid,
+    pub step_order: i32,
+    pub name: String,
+    pub description: Option<String>,
     pub duration_hours: Option<f64>,
-    pub temperature:    Option<f64>,
+    pub temperature: Option<f64>,
 }

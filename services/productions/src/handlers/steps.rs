@@ -45,7 +45,9 @@ pub async fn update_step(
 ) -> AppResult<Response> {
     require_role(&_claims, &["FARM_OWNER", "WORKER"])?;
     let farm_id = require_farm(&_claims)?;
-    Ok(ok(_step_service.update(_batch_id, step_id, farm_id, req).await?))
+    Ok(ok(_step_service
+        .update(_batch_id, step_id, farm_id, req)
+        .await?))
 }
 
 // ── DELETE /batches/:id/steps/:step_id ───────────────────────────────────────

@@ -2,10 +2,10 @@ use bigdecimal::BigDecimal;
 use sqlx::PgPool;
 use uuid::Uuid;
 
-use common::errors::{AppError, AppResult};
 use crate::dtos::analytics::analytics_response::StatusCount;
 use crate::dtos::order::list_orders_query::ListOrdersQuery;
 use crate::models::order::Order;
+use common::errors::{AppError, AppResult};
 
 #[derive(Clone)]
 pub struct OrderRepository {
@@ -35,13 +35,9 @@ impl OrderRepository {
         .ok_or_else(|| AppError::NotFound(format!("Order {} not found", id)))
     }
 
-    pub async fn find_all(
-        &self,
-        farm_id: Uuid,
-        q: &ListOrdersQuery,
-    ) -> AppResult<Vec<Order>> {
-        let offset   = q.offset();
-        let limit    = q.limit();
+    pub async fn find_all(&self, farm_id: Uuid, q: &ListOrdersQuery) -> AppResult<Vec<Order>> {
+        let offset = q.offset();
+        let limit = q.limit();
         let status_f = q.status.as_deref().unwrap_or("");
         let search_f = q.search.as_deref().unwrap_or("");
 
@@ -59,7 +55,11 @@ impl OrderRepository {
             ORDER  BY created_at DESC
             LIMIT  $4 OFFSET $5
             "#,
-            farm_id, status_f, search_f, limit, offset
+            farm_id,
+            status_f,
+            search_f,
+            limit,
+            offset
         )
         .fetch_all(&self.pool)
         .await?;
@@ -71,8 +71,8 @@ impl OrderRepository {
         _id: Uuid,
         q: &ListOrdersQuery,
     ) -> AppResult<Vec<Order>> {
-        let offset   = q.offset();
-        let limit    = q.limit();
+        let offset = q.offset();
+        let limit = q.limit();
         let status_f = q.status.as_deref().unwrap_or("");
         let search_f = q.search.as_deref().unwrap_or("");
 
@@ -90,7 +90,11 @@ impl OrderRepository {
             ORDER  BY created_at DESC
             LIMIT  $4 OFFSET $5
             "#,
-            _id, status_f, search_f, limit, offset
+            _id,
+            status_f,
+            search_f,
+            limit,
+            offset
         )
         .fetch_all(&self.pool)
         .await?;
@@ -98,11 +102,7 @@ impl OrderRepository {
         Ok(items)
     }
 
-    pub async fn count(
-        &self,
-        farm_id: Uuid,
-        q: &ListOrdersQuery,
-    ) -> AppResult<i64> {
+    pub async fn count(&self, farm_id: Uuid, q: &ListOrdersQuery) -> AppResult<i64> {
         let status_f = q.status.as_deref().unwrap_or("");
         let search_f = q.search.as_deref().unwrap_or("");
 
@@ -115,7 +115,9 @@ impl OrderRepository {
               AND  ($3 = '' OR customer_name  ILIKE '%' || $3 || '%'
                             OR customer_email ILIKE '%' || $3 || '%')
             "#,
-            farm_id, status_f, search_f
+            farm_id,
+            status_f,
+            search_f
         )
         .fetch_one(&self.pool)
         .await?
@@ -145,9 +147,13 @@ impl OrderRepository {
             RETURNING id, farm_id, customer_id, customer_name, customer_email,
                       status, total_price, notes, is_deleted, created_at, updated_at
             "#,
-            Uuid::new_v4(), farm_id,
-            customer_id, customer_name, customer_email,
-            notes, total_price
+            Uuid::new_v4(),
+            farm_id,
+            customer_id,
+            customer_name,
+            customer_email,
+            notes,
+            total_price
         )
         .fetch_one(&mut **tx)
         .await?;
@@ -169,7 +175,9 @@ impl OrderRepository {
             RETURNING id, farm_id, customer_id, customer_name, customer_email,
                       status, total_price, notes, is_deleted, created_at, updated_at
             "#,
-            new_status, id, farm_id
+            new_status,
+            id,
+            farm_id
         )
         .fetch_optional(&self.pool)
         .await?
@@ -206,7 +214,9 @@ impl OrderRepository {
               AND  ($2 = '' OR created_at::date >= $2::date)
               AND  ($3 = '' OR created_at::date <= $3::date)
             "#,
-            farm_id, from, to
+            farm_id,
+            from,
+            to
         )
         .fetch_one(&self.pool)
         .await?
@@ -224,7 +234,9 @@ impl OrderRepository {
               AND  ($2 = '' OR created_at::date >= $2::date)
               AND  ($3 = '' OR created_at::date <= $3::date)
             "#,
-            farm_id, from, to
+            farm_id,
+            from,
+            to
         )
         .fetch_one(&self.pool)
         .await?
@@ -233,7 +245,12 @@ impl OrderRepository {
         Ok(count)
     }
 
-    pub async fn orders_by_status(&self, farm_id: Uuid, from: &str, to: &str) -> AppResult<Vec<StatusCount>> {
+    pub async fn orders_by_status(
+        &self,
+        farm_id: Uuid,
+        from: &str,
+        to: &str,
+    ) -> AppResult<Vec<StatusCount>> {
         let rows = sqlx::query_as!(
             StatusCount,
             r#"
@@ -276,16 +293,17 @@ impl OrderRepository {
             GROUP  BY TO_CHAR(created_at, 'YYYY-MM')
             ORDER  BY 1 ASC
             "#,
-            farm_id, from, to
+            farm_id,
+            from,
+            to
         )
         .fetch_all(&self.pool)
         .await?;
 
-        Ok(rows.into_iter().map(|r| (
-            r.month,
-            bigdecimal_to_f64(&r.revenue),
-            r.orders,
-        )).collect())
+        Ok(rows
+            .into_iter()
+            .map(|r| (r.month, bigdecimal_to_f64(&r.revenue), r.orders))
+            .collect())
     }
 }
 

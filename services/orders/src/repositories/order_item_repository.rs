@@ -1,17 +1,17 @@
 use sqlx::PgPool;
 use uuid::Uuid;
 
-use common::errors::AppResult;
 use crate::dtos::analytics::analytics_response::TopProduct;
 use crate::dtos::order_item::new_order_item_dto::NewOrderItem;
 use crate::models::order_item::OrderItem;
+use common::errors::AppResult;
 
 #[derive(Clone)]
 pub struct OrderItemRepository {
     pool: PgPool,
 }
 
-impl OrderItemRepository{
+impl OrderItemRepository {
     pub fn new(pool: PgPool) -> Self {
         Self { pool }
     }
@@ -53,7 +53,8 @@ impl OrderItemRepository{
                 RETURNING id, order_id, product_id, product_name, product_type,
                           unit_price, quantity, unit, subtotal
                 "#,
-                Uuid::new_v4(), order_id,
+                Uuid::new_v4(),
+                order_id,
                 item.product_id,
                 item.product_name,
                 item.product_type,
@@ -96,7 +97,10 @@ impl OrderItemRepository{
             ORDER  BY SUM(oi.quantity) DESC
             LIMIT  $4
             "#,
-            farm_id, from, to, limit
+            farm_id,
+            from,
+            to,
+            limit
         )
         .fetch_all(&self.pool)
         .await?;

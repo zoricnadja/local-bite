@@ -1,17 +1,17 @@
-use std::sync::Arc;
-use axum::{routing::get, Extension, Router};
-use tower_http::cors::CorsLayer;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use crate::repository::repository::RawMaterialRepository;
 use crate::service::service::RawMaterialService;
+use axum::{routing::get, Extension, Router};
+use std::sync::Arc;
+use tower_http::cors::CorsLayer;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
+mod db;
+mod dtos;
 mod handlers;
 mod models;
 mod repository;
-mod service;
-mod db;
 mod routes;
-mod dtos;
+mod service;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -19,7 +19,8 @@ async fn main() -> anyhow::Result<()> {
 
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new(
-            std::env::var("RUST_LOG").unwrap_or_else(|_| "raw_materials=debug,tower_http=debug".into()),
+            std::env::var("RUST_LOG")
+                .unwrap_or_else(|_| "raw_materials=debug,tower_http=debug".into()),
         ))
         .with(tracing_subscriber::fmt::layer())
         .init();

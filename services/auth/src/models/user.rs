@@ -1,7 +1,7 @@
 use chrono::{DateTime, NaiveDate, NaiveDateTime, Utc};
+use common::models::Role;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use common::models::Role;
 
 #[derive(Debug, sqlx::FromRow, Serialize)]
 pub struct User {

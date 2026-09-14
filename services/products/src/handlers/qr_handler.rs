@@ -1,4 +1,10 @@
-use axum::{body::Body, extract::Path, http::{header, StatusCode}, response::{IntoResponse, Response}, Extension};
+use axum::{
+    body::Body,
+    extract::Path,
+    http::{header, StatusCode},
+    response::{IntoResponse, Response},
+    Extension,
+};
 use std::sync::Arc;
 use tokio::fs::File;
 use tokio_util::io::ReaderStream;
@@ -16,7 +22,6 @@ pub async fn get_qr(
     Path(id): Path<Uuid>,
     Extension(_qr_service): Extension<Arc<QrService>>,
 ) -> AppResult<Response> {
-
     let path = _qr_service.get_qr_path(id).await?;
     serve_png_file(&path).await
 }

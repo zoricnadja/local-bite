@@ -1,15 +1,15 @@
-use crate::service::service::AuthService;
-use axum::{
-    extract::{Extension, Json},
-    http::StatusCode,
-    response::IntoResponse,
-    debug_handler
-};
-use common::errors::AppError;
-use std::sync::Arc;
 use crate::dtos::login_request::LoginRequest;
 use crate::dtos::login_response::LoginResponse;
 use crate::dtos::register_request::RegisterRequest;
+use crate::service::service::AuthService;
+use axum::{
+    debug_handler,
+    extract::{Extension, Json},
+    http::StatusCode,
+    response::IntoResponse,
+};
+use common::errors::AppError;
+use std::sync::Arc;
 
 #[debug_handler]
 pub async fn register(

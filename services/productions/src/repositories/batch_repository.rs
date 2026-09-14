@@ -1,15 +1,15 @@
 use sqlx::PgPool;
 use uuid::Uuid;
 
-use common::errors::{AppError, AppResult};
 use crate::models::insert_production_params::InsertProductionParams;
 use crate::models::production_batch::ProductionBatch;
 use crate::models::query::ListQuery;
 use crate::models::update_production_params::UpdateProductionParams;
+use common::errors::{AppError, AppResult};
 
 #[derive(Clone)]
 pub struct BatchRepository {
-    pub pool: PgPool
+    pub pool: PgPool,
 }
 
 impl BatchRepository {
@@ -42,10 +42,15 @@ impl BatchRepository {
             ORDER  BY created_at DESC
             LIMIT  $5 OFFSET $6
             "#,
-            farm_id, status_f, type_f, search_f, limit, offset
+            farm_id,
+            status_f,
+            type_f,
+            search_f,
+            limit,
+            offset
         )
-            .fetch_all(&self.pool)
-            .await?;
+        .fetch_all(&self.pool)
+        .await?;
 
         let total: i64 = sqlx::query_scalar!(
             r#"
@@ -55,20 +60,19 @@ impl BatchRepository {
               AND  ($3 = '' OR process_type ILIKE $3)
               AND  ($4 = '' OR name         ILIKE '%' || $4 || '%')
             "#,
-            farm_id, status_f, type_f, search_f
+            farm_id,
+            status_f,
+            type_f,
+            search_f
         )
-            .fetch_one(&self.pool)
-            .await?
-            .unwrap_or(0);
+        .fetch_one(&self.pool)
+        .await?
+        .unwrap_or(0);
 
         Ok((items, total))
     }
 
-    pub async fn find_by_id_and_farm(
-        &self,
-        id: Uuid,
-        farm_id: Uuid,
-    ) -> AppResult<ProductionBatch> {
+    pub async fn find_by_id_and_farm(&self, id: Uuid, farm_id: Uuid) -> AppResult<ProductionBatch> {
         sqlx::query_as!(
             ProductionBatch,
             r#"
@@ -77,14 +81,13 @@ impl BatchRepository {
             FROM   production_batches
             WHERE  id = $1 AND farm_id = $2 AND is_deleted = FALSE
             "#,
-            id, farm_id
+            id,
+            farm_id
         )
-            .fetch_optional(&self.pool)
-            .await?
-            .ok_or_else(|| AppError::NotFound(format!("Batch {} not found", id)))
+        .fetch_optional(&self.pool)
+        .await?
+        .ok_or_else(|| AppError::NotFound(format!("Batch {} not found", id)))
     }
-
-
 
     pub async fn insert(&self, p: InsertProductionParams) -> AppResult<ProductionBatch> {
         Ok(sqlx::query_as!(
@@ -96,14 +99,17 @@ impl BatchRepository {
             RETURNING id, farm_id, name, process_type, start_date, end_date,
                       status, notes, is_deleted, created_at, updated_at
             "#,
-            p.id, p.farm_id, p.name, p.process_type,
-            p.start_date, p.end_date, p.notes.as_deref()
+            p.id,
+            p.farm_id,
+            p.name,
+            p.process_type,
+            p.start_date,
+            p.end_date,
+            p.notes.as_deref()
         )
-            .fetch_one(&self.pool)
-            .await?)
+        .fetch_one(&self.pool)
+        .await?)
     }
-
-
 
     pub async fn update(
         &self,
@@ -125,20 +131,27 @@ impl BatchRepository {
             RETURNING id, farm_id, name, process_type, start_date, end_date,
                       status, notes, is_deleted, created_at, updated_at
             "#,
-            p.name, p.process_type, p.start_date, p.end_date,
-            p.notes.as_deref(), p.status, id, farm_id
+            p.name,
+            p.process_type,
+            p.start_date,
+            p.end_date,
+            p.notes.as_deref(),
+            p.status,
+            id,
+            farm_id
         )
-            .fetch_one(&self.pool)
-            .await?)
+        .fetch_one(&self.pool)
+        .await?)
     }
 
     pub async fn soft_delete(&self, id: Uuid, farm_id: Uuid) -> AppResult<u64> {
         Ok(sqlx::query!(
             "UPDATE production_batches SET is_deleted = TRUE WHERE id = $1 AND farm_id = $2",
-            id, farm_id
+            id,
+            farm_id
         )
-            .execute(&self.pool)
-            .await?
-            .rows_affected())
+        .execute(&self.pool)
+        .await?
+        .rows_affected())
     }
 }

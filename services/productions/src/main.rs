@@ -1,21 +1,21 @@
-use std::sync::Arc;
-use axum::{routing::get, Extension, Router};
-use tower_http::cors::CorsLayer;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use crate::repositories::batch_repository::BatchRepository;
 use crate::repositories::raw_materials_repository::RawMaterialsRepository;
 use crate::repositories::step_repository::StepRepository;
 use crate::services::batch_service::BatchService;
 use crate::services::raw_materials_service::RawMaterialsService;
 use crate::services::step_service::StepService;
+use axum::{routing::get, Extension, Router};
+use std::sync::Arc;
+use tower_http::cors::CorsLayer;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-mod dtos;
-mod models;
-mod services;
-mod repositories;
-mod handlers;
 mod db;
+mod dtos;
+mod handlers;
+mod models;
+mod repositories;
 mod routes;
+mod services;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -33,11 +33,22 @@ async fn main() -> anyhow::Result<()> {
     let raw_materials_repository = Arc::new(RawMaterialsRepository::new(pool.clone()));
     let step_repository = Arc::new(StepRepository::new(pool.clone()));
     let batch_repository = Arc::new(BatchRepository::new(pool.clone()));
-    let raw_materials_service = Arc::new(
-        RawMaterialsService::new(batch_repository.clone(), raw_materials_repository.clone(), step_repository.clone()));
+    let raw_materials_service = Arc::new(RawMaterialsService::new(
+        batch_repository.clone(),
+        raw_materials_repository.clone(),
+        step_repository.clone(),
+    ));
     let batch_service = Arc::new(BatchService::new(
-        batch_repository.clone(), step_repository.clone(), raw_materials_repository.clone(), raw_materials_service.clone()));
-    let step_service = Arc::new(StepService::new(batch_repository.clone(), batch_service.clone(), step_repository.clone()));
+        batch_repository.clone(),
+        step_repository.clone(),
+        raw_materials_repository.clone(),
+        raw_materials_service.clone(),
+    ));
+    let step_service = Arc::new(StepService::new(
+        batch_repository.clone(),
+        batch_service.clone(),
+        step_repository.clone(),
+    ));
 
     let app = Router::new()
         .route("/health", get(|| async { "ok" }))

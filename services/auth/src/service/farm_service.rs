@@ -1,12 +1,12 @@
+use argon2::{
+    password_hash::{PasswordHasher, SaltString},
+    Argon2,
+};
+use chrono::Utc;
+use jsonwebtoken::{encode, EncodingKey, Header};
 use std::sync::Arc;
 use uuid::Uuid;
-use chrono::Utc;
-use argon2::{Argon2, password_hash::{SaltString, PasswordHasher}};
-use jsonwebtoken::{encode, EncodingKey, Header};
 
-use common::errors::AppError;
-use common::jwt::Claims;
-use common::models::Role;
 use crate::dtos::add_worker_request::AddWorkerRequest;
 use crate::dtos::create_farm_request::CreateFarmRequest;
 use crate::dtos::create_farm_response::CreateFarmResult;
@@ -18,6 +18,9 @@ use crate::models::user::User;
 use crate::repository::farm_repository::FarmRepository;
 use crate::repository::farm_repository::WorkerRecord;
 use crate::repository::repository::UserRepository;
+use common::errors::AppError;
+use common::jwt::Claims;
+use common::models::Role;
 
 #[derive(Clone)]
 pub struct FarmService {
@@ -27,13 +30,27 @@ pub struct FarmService {
 }
 
 impl FarmService {
-    pub fn new(farm_repository: Arc<FarmRepository>, user_repository: Arc<UserRepository>, jwt_secret: String) -> Self {
-        Self { farm_repository, user_repository, jwt_secret }
+    pub fn new(
+        farm_repository: Arc<FarmRepository>,
+        user_repository: Arc<UserRepository>,
+        jwt_secret: String,
+    ) -> Self {
+        Self {
+            farm_repository,
+            user_repository,
+            jwt_secret,
+        }
     }
 
-    pub async fn create_farm(&self, claims: &Claims, payload: CreateFarmRequest) -> Result<CreateFarmResult, AppError> {
+    pub async fn create_farm(
+        &self,
+        claims: &Claims,
+        payload: CreateFarmRequest,
+    ) -> Result<CreateFarmResult, AppError> {
         if claims.role != "FARM_OWNER" {
-            return Err(AppError::Forbidden("Only FARM_OWNER can create a farm".into()));
+            return Err(AppError::Forbidden(
+                "Only FARM_OWNER can create a farm".into(),
+            ));
         }
         if claims.farm_id.is_some() {
             return Err(AppError::Conflict("You already have a farm".into()));
@@ -56,8 +73,9 @@ impl FarmService {
         };
 
         self.farm_repository.insert_farm(&farm).await?;
-        self.user_repository.set_farm_id(claims.sub, Some(farm_id)).await?;
-
+        self.user_repository
+            .set_farm_id(claims.sub, Some(farm_id))
+            .await?;
 
         // Issue a fresh JWT including the new farm_id
         let new_claims = Claims {
@@ -77,12 +95,21 @@ impl FarmService {
         Ok(CreateFarmResult { farm, token })
     }
 
-    pub async fn add_worker(&self, claims: &Claims, farm_id: Uuid, payload: RegisterRequest) -> Result<WorkerOut, AppError> {
+    pub async fn add_worker(
+        &self,
+        claims: &Claims,
+        farm_id: Uuid,
+        payload: RegisterRequest,
+    ) -> Result<WorkerOut, AppError> {
         if claims.role != "FARM_OWNER" {
-            return Err(AppError::Forbidden("Only FARM_OWNER can add workers".into()));
+            return Err(AppError::Forbidden(
+                "Only FARM_OWNER can add workers".into(),
+            ));
         }
         if claims.farm_id != Some(farm_id) {
-            return Err(AppError::Forbidden("You can only add workers to your own farm".into()));
+            return Err(AppError::Forbidden(
+                "You can only add workers to your own farm".into(),
+            ));
         }
 
         if self.farm_repository.email_exists(&payload.email).await? {
@@ -112,11 +139,14 @@ impl FarmService {
             created_at: now,
             updated_at: now,
         };
-        self.user_repository
-            .create_user(user)
-            .await?;
+        self.user_repository.create_user(user).await?;
 
-        Ok(WorkerOut { id: worker_id, email: payload.email, role: "WORKER".to_string(), farm_id })
+        Ok(WorkerOut {
+            id: worker_id,
+            email: payload.email,
+            role: "WORKER".to_string(),
+            farm_id,
+        })
     }
 
     pub async fn get_farm(&self, claims: &Claims, farm_id: Uuid) -> Result<Farm, AppError> {
@@ -127,7 +157,9 @@ impl FarmService {
             .ok_or_else(|| AppError::NotFound("Farm not found".into()))?;
         // Only allow accessing own farm for now (could be expanded to SYSTEM_ADMIN, etc.)
         if claims.sub.ne(&farm.owner_id) {
-            return Err(AppError::Forbidden("You can only access your own farm".into()));
+            return Err(AppError::Forbidden(
+                "You can only access your own farm".into(),
+            ));
         }
         Ok(farm)
     }
@@ -136,14 +168,15 @@ impl FarmService {
         self.require_admin(caller)?;
         self.farm_repository.find_all().await
     }
-    
+
     pub async fn update_farm(
         &self,
         caller: &Claims,
         farm_id: Uuid,
         payload: UpdateFarmRequest,
     ) -> Result<Farm, AppError> {
-        let mut farm = self.farm_repository
+        let mut farm = self
+            .farm_repository
             .find_by_id(farm_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Farm not found".into()))?;
@@ -152,18 +185,29 @@ impl FarmService {
             self.require_admin(caller)?;
         }
 
-        if let Some(v) = payload.name        { farm.name        = v; }
-        if let Some(v) = payload.address     { farm.address     = v; }
-        if let Some(v) = payload.phone       { farm.phone       = Some(v); }
-        if let Some(v) = payload.description { farm.description = Some(v); }
-        if let Some(v) = payload.website     { farm.website     = Some(v); }
+        if let Some(v) = payload.name {
+            farm.name = v;
+        }
+        if let Some(v) = payload.address {
+            farm.address = v;
+        }
+        if let Some(v) = payload.phone {
+            farm.phone = Some(v);
+        }
+        if let Some(v) = payload.description {
+            farm.description = Some(v);
+        }
+        if let Some(v) = payload.website {
+            farm.website = Some(v);
+        }
 
         farm.updated_at = Utc::now();
         self.farm_repository.update_farm(&farm).await
     }
 
     pub async fn delete_farm(&self, caller: &Claims, farm_id: Uuid) -> Result<(), AppError> {
-        let farm = self.farm_repository
+        let farm = self
+            .farm_repository
             .find_by_id(farm_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Farm not found".into()))?;
@@ -173,20 +217,34 @@ impl FarmService {
             tracing::info!("Removed farmdddddd {}", farm.id);
         }
         tracing::info!("Removed farm {}", farm.id);
-        self.user_repository.set_farm_id(caller.sub, None).await.ok(); // best-effort
+        self.user_repository
+            .set_farm_id(caller.sub, None)
+            .await
+            .ok(); // best-effort
         self.farm_repository.delete_farm(farm_id).await?;
         // Detach farm from owner
         tracing::info!("Deleted farm {}", farm.id);
         Ok(())
     }
-    pub async fn list_workers(&self, claims: &Claims, farm_id: Uuid) -> Result<Vec<WorkerOut>, AppError> {
+    pub async fn list_workers(
+        &self,
+        claims: &Claims,
+        farm_id: Uuid,
+    ) -> Result<Vec<WorkerOut>, AppError> {
         if claims.farm_id != Some(farm_id) {
-            return Err(AppError::Forbidden("You can only access your own farm".into()));
+            return Err(AppError::Forbidden(
+                "You can only access your own farm".into(),
+            ));
         }
         let rows: Vec<WorkerRecord> = self.farm_repository.list_workers_by_farm(farm_id).await?;
         let workers = rows
             .into_iter()
-            .map(|r| WorkerOut { id: r.id, email: r.email, role: "WORKER".to_string(), farm_id: r.farm_id })
+            .map(|r| WorkerOut {
+                id: r.id,
+                email: r.email,
+                role: "WORKER".to_string(),
+                farm_id: r.farm_id,
+            })
             .collect();
         Ok(workers)
     }
@@ -198,5 +256,3 @@ impl FarmService {
         Ok(())
     }
 }
-
-

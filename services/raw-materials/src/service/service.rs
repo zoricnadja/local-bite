@@ -3,26 +3,28 @@ use std::str::FromStr;
 use std::sync::Arc;
 use uuid::Uuid;
 
-use common::errors::{AppError, AppResult};
-use common::paginated_response::PaginatedResponse;
 use crate::dtos::adjust_quantity_request::AdjustQuantityRequest;
 use crate::dtos::create_raw_material_request::CreateRawMaterialRequest;
 use crate::dtos::update_raw_material_request::UpdateRawMaterialRequest;
 use crate::models::query::ListQuery;
 use crate::models::raw_material::RawMaterial;
 use crate::repository::repository::RawMaterialRepository;
+use common::errors::{AppError, AppResult};
+use common::paginated_response::PaginatedResponse;
 
 fn to_decimal(v: f64) -> BigDecimal {
     BigDecimal::from_str(&v.to_string()).unwrap_or_default()
 }
 
 #[derive(Clone)]
-pub struct RawMaterialService{
-    pub raw_material_repository: Arc<RawMaterialRepository>
+pub struct RawMaterialService {
+    pub raw_material_repository: Arc<RawMaterialRepository>,
 }
 impl RawMaterialService {
     pub fn new(raw_material_repository: Arc<RawMaterialRepository>) -> Self {
-        Self { raw_material_repository }
+        Self {
+            raw_material_repository,
+        }
     }
     pub async fn list(
         &self,
@@ -53,20 +55,21 @@ impl RawMaterialService {
             return Err(AppError::BadRequest("Unit cannot be empty".into()));
         }
 
-        self.raw_material_repository.insert(
-            Uuid::new_v4(),
-            farm_id,
-            req.name.trim(),
-            req.material_type.trim(),
-            to_decimal(req.quantity),
-            req.unit.trim(),
-            req.supplier.as_deref(),
-            req.origin.as_deref(),
-            req.harvest_date,
-            req.expiry_date,
-            req.notes.as_deref(),
-            req.low_stock_threshold.map(to_decimal),
-        )
+        self.raw_material_repository
+            .insert(
+                Uuid::new_v4(),
+                farm_id,
+                req.name.trim(),
+                req.material_type.trim(),
+                to_decimal(req.quantity),
+                req.unit.trim(),
+                req.supplier.as_deref(),
+                req.origin.as_deref(),
+                req.harvest_date,
+                req.expiry_date,
+                req.notes.as_deref(),
+                req.low_stock_threshold.map(to_decimal),
+            )
             .await
     }
 
@@ -82,25 +85,33 @@ impl RawMaterialService {
     ) -> AppResult<RawMaterial> {
         let existing = self.raw_material_repository.find_by_id(id, farm_id).await?;
 
-        self.raw_material_repository.update(
-            id,
-            farm_id,
-            req.name.as_deref().unwrap_or(&existing.name),
-            req.material_type.as_deref().unwrap_or(&existing.material_type),
-            req.quantity.map(to_decimal).unwrap_or(existing.quantity),
-            req.unit.as_deref().unwrap_or(&existing.unit),
-            req.supplier.as_deref().or(existing.supplier.as_deref()),
-            req.origin.as_deref().or(existing.origin.as_deref()),
-            req.harvest_date.or(existing.harvest_date),
-            req.expiry_date.or(existing.expiry_date),
-            req.notes.as_deref().or(existing.notes.as_deref()),
-            req.low_stock_threshold.map(to_decimal).or(existing.low_stock_threshold),
-        )
+        self.raw_material_repository
+            .update(
+                id,
+                farm_id,
+                req.name.as_deref().unwrap_or(&existing.name),
+                req.material_type
+                    .as_deref()
+                    .unwrap_or(&existing.material_type),
+                req.quantity.map(to_decimal).unwrap_or(existing.quantity),
+                req.unit.as_deref().unwrap_or(&existing.unit),
+                req.supplier.as_deref().or(existing.supplier.as_deref()),
+                req.origin.as_deref().or(existing.origin.as_deref()),
+                req.harvest_date.or(existing.harvest_date),
+                req.expiry_date.or(existing.expiry_date),
+                req.notes.as_deref().or(existing.notes.as_deref()),
+                req.low_stock_threshold
+                    .map(to_decimal)
+                    .or(existing.low_stock_threshold),
+            )
             .await
     }
 
     pub async fn delete(&self, id: Uuid, farm_id: Uuid) -> AppResult<()> {
-        let rows = self.raw_material_repository.soft_delete(id, farm_id).await?;
+        let rows = self
+            .raw_material_repository
+            .soft_delete(id, farm_id)
+            .await?;
         if rows == 0 {
             return Err(AppError::NotFound(format!("Raw material {} not found", id)));
         }

@@ -1,39 +1,44 @@
+use axum::routing::patch;
 use axum::{
     routing::{get, post},
     Router,
 };
-use axum::routing::patch;
 use tower_http::services::ServeDir;
 
-use crate::handlers::{products_handler, public_handler, qr_handler, image_handler};
 use crate::handlers::products_handler::decrement_quantity;
+use crate::handlers::{image_handler, products_handler, public_handler, qr_handler};
 
 pub fn product_routes() -> Router {
     Router::new()
-        .route("/public/{qr_token}",         get(public_handler::scan))
-
+        .route("/public/{qr_token}", get(public_handler::scan))
+        .route(
+            "/public/{qr_token}/certificate.pdf",
+            get(public_handler::certificate),
+        )
         // Collection
-        .route("/",                          get(products_handler::list).post(products_handler::create))
-        .route("/farm",                          get(products_handler::list_by_farm))
-
+        .route(
+            "/",
+            get(products_handler::list).post(products_handler::create),
+        )
+        .route("/farm", get(products_handler::list_by_farm))
         // Single product CRUD
-        .route("/{id}",                       get(products_handler::get_one)
-            .put(products_handler::update)
-            .delete(products_handler::delete))
-
+        .route(
+            "/{id}",
+            get(products_handler::get_one)
+                .put(products_handler::update)
+                .delete(products_handler::delete),
+        )
         // Provenance chain
-        .route("/{id}/provenance",            get(products_handler::provenance))
-
+        .route("/{id}/provenance", get(products_handler::provenance))
         // Image
         .route(
             "/{id}/image",
             get(image_handler::get_image).post(image_handler::upload_image),
         )
-
         // QR code
-        .route("/{id}/qr",                    get(qr_handler::get_qr))
-        .route("/{id}/qr/regenerate",         post(qr_handler::regenerate_qr))
-        .route("/{id}/decrement",     patch(decrement_quantity))
+        .route("/{id}/qr", get(qr_handler::get_qr))
+        .route("/{id}/qr/regenerate", post(qr_handler::regenerate_qr))
+        .route("/{id}/decrement", patch(decrement_quantity))
 }
 
 /// Static file serving for uploaded images and QR PNGs.

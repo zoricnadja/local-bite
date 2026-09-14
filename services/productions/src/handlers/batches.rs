@@ -1,4 +1,9 @@
-use axum::{extract::{Path, Query}, http::HeaderMap, response::Response, Extension, Json};
+use axum::{
+    extract::{Path, Query},
+    http::HeaderMap,
+    response::Response,
+    Extension, Json,
+};
 use std::sync::Arc;
 use uuid::Uuid;
 

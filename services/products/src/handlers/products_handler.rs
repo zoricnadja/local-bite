@@ -1,8 +1,15 @@
-use axum::{debug_handler, extract::{Path, Query}, http::HeaderMap, response::Response, Extension, Json};
+use axum::{
+    debug_handler,
+    extract::{Path, Query},
+    http::HeaderMap,
+    response::Response,
+    Extension, Json,
+};
 use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::dtos::create_product_request::CreateProductRequest;
+use crate::dtos::decrement_request::DecrementRequest;
 use crate::dtos::update_product_request::UpdateProductRequest;
 use crate::models::query::ListQuery;
 use crate::services::product_service::ProductService;
@@ -12,7 +19,6 @@ use common::{
     middleware::{require_farm, require_role, AuthClaims},
     response::{created, no_content, ok},
 };
-use crate::dtos::decrement_request::DecrementRequest;
 // ── GET /products/farm ─────────────────────────────────────────────────────────────
 
 #[debug_handler]
@@ -21,7 +27,10 @@ pub async fn list_by_farm(
     Query(_q): Query<ListQuery>,
     Extension(_product_service): Extension<Arc<ProductService>>,
 ) -> AppResult<Response> {
-    require_role(&_claims, &["FARM_OWNER", "WORKER", "SYSTEM_ADMIN", "CUSTOMER"])?;
+    require_role(
+        &_claims,
+        &["FARM_OWNER", "WORKER", "SYSTEM_ADMIN", "CUSTOMER"],
+    )?;
     let farm_id = require_farm(&_claims)?;
 
     let result = _product_service.find_all_by_farm_id(farm_id, &_q).await?;
@@ -50,7 +59,10 @@ pub async fn create(
     Extension(_product_service): Extension<Arc<ProductService>>,
     Json(_req): Json<CreateProductRequest>,
 ) -> AppResult<Response> {
-    require_role(&_claims, &["FARM_OWNER", "WORKER", "SYSTEM_ADMIN", "CUSTOMER"])?;
+    require_role(
+        &_claims,
+        &["FARM_OWNER", "WORKER", "SYSTEM_ADMIN", "CUSTOMER"],
+    )?;
     let farm_id = require_farm(&_claims)?;
 
     let product = _product_service.create(farm_id, _req).await?;
@@ -65,7 +77,10 @@ pub async fn get_one(
     Path(_id): Path<Uuid>,
     Extension(_product_service): Extension<Arc<ProductService>>,
 ) -> AppResult<Response> {
-    require_role(&_claims, &["FARM_OWNER", "WORKER", "SYSTEM_ADMIN", "CUSTOMER"])?;
+    require_role(
+        &_claims,
+        &["FARM_OWNER", "WORKER", "SYSTEM_ADMIN", "CUSTOMER"],
+    )?;
 
     let product = _product_service.get_one(_id).await?;
     Ok(ok(product))
@@ -80,7 +95,10 @@ pub async fn provenance(
     _headers: HeaderMap,
     Extension(_provenance_service): Extension<Arc<ProvenanceService>>,
 ) -> AppResult<Response> {
-    require_role(&_claims, &["FARM_OWNER", "WORKER", "CUSTOMER", "SYSTEM_ADMIN"])?;
+    require_role(
+        &_claims,
+        &["FARM_OWNER", "WORKER", "CUSTOMER", "SYSTEM_ADMIN"],
+    )?;
     let farm_id = require_farm(&_claims)?;
 
     let token = _headers
@@ -89,7 +107,9 @@ pub async fn provenance(
         .and_then(|v| v.strip_prefix("Bearer "))
         .unwrap_or_default();
 
-    let result = _provenance_service.get_provenance(_id, farm_id, token).await?;
+    let result = _provenance_service
+        .get_provenance(_id, farm_id, token)
+        .await?;
     Ok(ok(result))
 }
 
@@ -102,7 +122,10 @@ pub async fn update(
     Extension(_product_service): Extension<Arc<ProductService>>,
     Json(req): Json<UpdateProductRequest>,
 ) -> AppResult<Response> {
-    require_role(&_claims, &["FARM_OWNER", "WORKER", "SYSTEM_ADMIN", "CUSTOMER"])?;
+    require_role(
+        &_claims,
+        &["FARM_OWNER", "WORKER", "SYSTEM_ADMIN", "CUSTOMER"],
+    )?;
     let farm_id = require_farm(&_claims)?;
 
     let updated = _product_service.update(_id, farm_id, req).await?;

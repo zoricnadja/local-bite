@@ -7,9 +7,9 @@ use chrono::Utc;
 use std::sync::Arc;
 use uuid::Uuid;
 
-use common::{errors::AppError, jwt::Claims};
 use crate::dtos::update_user_request::UpdateUserRequest;
 use crate::models::user::User;
+use common::{errors::AppError, jwt::Claims};
 
 #[derive(Clone)]
 pub struct UserService {
@@ -19,7 +19,10 @@ pub struct UserService {
 
 impl UserService {
     pub fn new(user_repo: Arc<UserRepository>, jwt_secret: String) -> Self {
-        Self { user_repo, jwt_secret }
+        Self {
+            user_repo,
+            jwt_secret,
+        }
     }
 
     pub async fn get_user(&self, user_id: Uuid) -> Result<User, AppError> {
@@ -69,12 +72,24 @@ impl UserService {
             user.role = role_str.parse()?;
         }
 
-        if let Some(v) = payload.first_name { user.first_name = v; }
-        if let Some(v) = payload.last_name  { user.last_name  = v; }
-        if let Some(v) = payload.address    { user.address    = v; }
-        if let Some(v) = payload.phone      { user.phone      = Some(v); }
-        if let Some(v) = payload.photo_url  { user.photo_url  = Some(v); }
-        if let Some(v) = payload.date_of_birth { user.date_of_birth = Some(v); }
+        if let Some(v) = payload.first_name {
+            user.first_name = v;
+        }
+        if let Some(v) = payload.last_name {
+            user.last_name = v;
+        }
+        if let Some(v) = payload.address {
+            user.address = v;
+        }
+        if let Some(v) = payload.phone {
+            user.phone = Some(v);
+        }
+        if let Some(v) = payload.photo_url {
+            user.photo_url = Some(v);
+        }
+        if let Some(v) = payload.date_of_birth {
+            user.date_of_birth = Some(v);
+        }
 
         user.updated_at = Utc::now();
         self.user_repo.update_user(&user).await
@@ -94,5 +109,4 @@ impl UserService {
         }
         Ok(())
     }
-
 }

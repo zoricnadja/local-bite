@@ -2,11 +2,11 @@ use bigdecimal::BigDecimal;
 use sqlx::PgPool;
 use uuid::Uuid;
 
-use common::errors::{AppError, AppResult};
 use crate::models::insert_product_params::InsertParams;
 use crate::models::product::Product;
 use crate::models::query::ListQuery;
 use crate::models::update_product_params::UpdateParams;
+use common::errors::{AppError, AppResult};
 
 #[derive(Clone)]
 pub struct ProductRepository {
@@ -14,7 +14,9 @@ pub struct ProductRepository {
 }
 
 impl ProductRepository {
-    pub fn new(pool: PgPool) -> Self { Self { pool } }
+    pub fn new(pool: PgPool) -> Self {
+        Self { pool }
+    }
 
     // ── List ──────────────────────────────────────────────────────────────────────
 
@@ -44,10 +46,15 @@ impl ProductRepository {
             ORDER  BY created_at DESC
             LIMIT  $5 OFFSET $6
             "#,
-            farm_id, type_filter, search, active_only, limit, offset
+            farm_id,
+            type_filter,
+            search,
+            active_only,
+            limit,
+            offset
         )
-            .fetch_all(&self.pool)
-            .await?;
+        .fetch_all(&self.pool)
+        .await?;
 
         let total: i64 = sqlx::query_scalar!(
             r#"
@@ -57,19 +64,19 @@ impl ProductRepository {
               AND  ($3 = '' OR name ILIKE '%' || $3 || '%')
               AND  (NOT $4    OR is_active = TRUE)
             "#,
-            farm_id, type_filter, search, active_only
+            farm_id,
+            type_filter,
+            search,
+            active_only
         )
-            .fetch_one(&self.pool)
-            .await?
-            .unwrap_or(0);
+        .fetch_one(&self.pool)
+        .await?
+        .unwrap_or(0);
 
         Ok((items, total))
     }
 
-    pub async fn find_all(
-        &self,
-        q: &ListQuery,
-    ) -> AppResult<(Vec<Product>, i64)> {
+    pub async fn find_all(&self, q: &ListQuery) -> AppResult<(Vec<Product>, i64)> {
         let offset = q.offset();
         let limit = q.limit();
         let type_filter = q.product_type.as_deref().unwrap_or("");
@@ -89,10 +96,14 @@ impl ProductRepository {
             ORDER  BY created_at DESC
             LIMIT  $4 OFFSET $5
             "#,
-            type_filter, search, active_only, limit, offset
+            type_filter,
+            search,
+            active_only,
+            limit,
+            offset
         )
-            .fetch_all(&self.pool)
-            .await?;
+        .fetch_all(&self.pool)
+        .await?;
 
         let total: i64 = sqlx::query_scalar!(
             r#"
@@ -101,11 +112,13 @@ impl ProductRepository {
               AND  ($2 = '' OR name ILIKE '%' || $2 || '%')
               AND  (NOT $3    OR is_active = TRUE)
             "#,
-            type_filter, search, active_only
+            type_filter,
+            search,
+            active_only
         )
-            .fetch_one(&self.pool)
-            .await?
-            .unwrap_or(0);
+        .fetch_one(&self.pool)
+        .await?
+        .unwrap_or(0);
 
         Ok((items, total))
     }
@@ -122,13 +135,14 @@ impl ProductRepository {
             FROM   products
             WHERE  id = $1 AND farm_id = $2 AND is_deleted = FALSE
             "#,
-            id, farm_id
+            id,
+            farm_id
         )
-            .fetch_optional(&self.pool)
-            .await?
-            .ok_or_else(|| AppError::NotFound(format!("Product {} not found", id)))
+        .fetch_optional(&self.pool)
+        .await?
+        .ok_or_else(|| AppError::NotFound(format!("Product {} not found", id)))
     }
-    
+
     pub async fn find_by_id(&self, id: Uuid) -> AppResult<Product> {
         sqlx::query_as!(
             Product,
@@ -141,9 +155,9 @@ impl ProductRepository {
             "#,
             id
         )
-            .fetch_optional(&self.pool)
-            .await?
-            .ok_or_else(|| AppError::NotFound(format!("Product {} not found", id)))
+        .fetch_optional(&self.pool)
+        .await?
+        .ok_or_else(|| AppError::NotFound(format!("Product {} not found", id)))
     }
 
     pub async fn find_by_qr_token(&self, qr_token: Uuid) -> AppResult<Product> {
@@ -160,9 +174,9 @@ impl ProductRepository {
             "#,
             qr_token
         )
-            .fetch_optional(&self.pool)
-            .await?
-            .ok_or_else(|| AppError::NotFound("Product not found or no longer active".into()))
+        .fetch_optional(&self.pool)
+        .await?
+        .ok_or_else(|| AppError::NotFound("Product not found or no longer active".into()))
     }
 
     // ── Insert ────────────────────────────────────────────────────────────────────
@@ -179,20 +193,24 @@ impl ProductRepository {
                       batch_id, image_path, qr_token, qr_path, is_active, is_deleted,
                       created_at, updated_at
             "#,
-            p.id, p.farm_id, p.name, p.product_type, p.description,
-            p.quantity, p.unit, p.price, p.batch_id, p.qr_token, p.qr_path,
+            p.id,
+            p.farm_id,
+            p.name,
+            p.product_type,
+            p.description,
+            p.quantity,
+            p.unit,
+            p.price,
+            p.batch_id,
+            p.qr_token,
+            p.qr_path,
         )
-            .fetch_one(&self.pool)
-            .await?)
+        .fetch_one(&self.pool)
+        .await?)
     }
 
     // ── Update ────────────────────────────────────────────────────────────────────
-    pub async fn update(
-        &self,
-        id: Uuid,
-        farm_id: Uuid,
-        p: UpdateParams,
-    ) -> AppResult<Product> {
+    pub async fn update(&self, id: Uuid, farm_id: Uuid, p: UpdateParams) -> AppResult<Product> {
         Ok(sqlx::query_as!(
             Product,
             r#"
@@ -210,12 +228,19 @@ impl ProductRepository {
                       batch_id, image_path, qr_token, qr_path, is_active, is_deleted,
                       created_at, updated_at
             "#,
-            p.name, p.product_type, p.description, p.quantity,
-            p.unit, p.price, p.batch_id, p.is_active,
-            id, farm_id
+            p.name,
+            p.product_type,
+            p.description,
+            p.quantity,
+            p.unit,
+            p.price,
+            p.batch_id,
+            p.is_active,
+            id,
+            farm_id
         )
-            .fetch_one(&self.pool)
-            .await?)
+        .fetch_one(&self.pool)
+        .await?)
     }
 
     pub async fn soft_delete(&self, id: Uuid, farm_id: Uuid) -> AppResult<u64> {
@@ -231,9 +256,13 @@ impl ProductRepository {
     // ── QR / Image ────────────────────────────────────────────────────────────────
 
     pub async fn set_qr_path(&self, id: Uuid, qr_path: &str) -> AppResult<()> {
-        sqlx::query!("UPDATE products SET qr_path = $1 WHERE id = $2", qr_path, id)
-            .execute(&self.pool)
-            .await?;
+        sqlx::query!(
+            "UPDATE products SET qr_path = $1 WHERE id = $2",
+            qr_path,
+            id
+        )
+        .execute(&self.pool)
+        .await?;
         Ok(())
     }
 
@@ -251,10 +280,12 @@ impl ProductRepository {
                       batch_id, image_path, qr_token, qr_path, is_active, is_deleted,
                       created_at, updated_at
             "#,
-            qr_path, id, farm_id
+            qr_path,
+            id,
+            farm_id
         )
-            .fetch_one(&self.pool)
-            .await?)
+        .fetch_one(&self.pool)
+        .await?)
     }
 
     pub async fn set_image_path(
@@ -272,27 +303,29 @@ impl ProductRepository {
                       batch_id, image_path, qr_token, qr_path, is_active, is_deleted,
                       created_at, updated_at
             "#,
-            image_path, id, farm_id
+            image_path,
+            id,
+            farm_id
         )
-            .fetch_one(&self.pool)
-            .await?)
+        .fetch_one(&self.pool)
+        .await?)
     }
 
     pub async fn update_quantity(&self, id: Uuid, new_qty: BigDecimal) -> AppResult<Product> {
         let product = sqlx::query_as!(
-        Product,
-        r#"
+            Product,
+            r#"
         UPDATE products
         SET quantity = $1, updated_at = now()
         WHERE id = $2 AND is_deleted = FALSE
         RETURNING *
         "#,
-        new_qty,
-        id,
-    )
-            .fetch_one(&self.pool)
-            .await
-            .map_err(|_| AppError::NotFound(format!("Product {} not found", id)))?;
+            new_qty,
+            id,
+        )
+        .fetch_one(&self.pool)
+        .await
+        .map_err(|_| AppError::NotFound(format!("Product {} not found", id)))?;
 
         Ok(product)
     }

@@ -1,12 +1,6 @@
-use axum::{
-    extract::Request,
-    http::StatusCode,
-    middleware::Next,
-    response::Response,
-    Extension,
-};
-use std::sync::Arc;
 use crate::service::service::AuthService;
+use axum::{extract::Request, http::StatusCode, middleware::Next, response::Response, Extension};
+use std::sync::Arc;
 
 pub async fn auth_middleware(
     Extension(auth_service): Extension<Arc<AuthService>>,

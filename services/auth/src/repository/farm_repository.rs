@@ -1,8 +1,8 @@
 use crate::models::farms::Farm;
-use sqlx::{PgPool, Postgres, Transaction};
-use uuid::Uuid;
 use chrono::Utc;
 use common::errors::AppError;
+use sqlx::{PgPool, Postgres, Transaction};
+use uuid::Uuid;
 
 // Workers listing record (lightweight projection)
 #[derive(sqlx::FromRow, Clone)]
@@ -18,12 +18,11 @@ pub struct FarmRepository {
 }
 
 impl FarmRepository {
-    pub fn new(pool: PgPool) -> Self { Self { pool } }
+    pub fn new(pool: PgPool) -> Self {
+        Self { pool }
+    }
 
-    pub async fn insert_farm(
-        &self,
-        f: &Farm,
-    ) -> Result<(), AppError> {
+    pub async fn insert_farm(&self, f: &Farm) -> Result<(), AppError> {
         sqlx::query!(
             r#"
             INSERT INTO farms
@@ -37,10 +36,15 @@ impl FarmRepository {
                  $6, $7, $8,
                  $9)
             "#,
-            f.id, f.name, f.owner_id,
+            f.id,
+            f.name,
+            f.owner_id,
             f.address,
-            f.phone, f.description, f.website,
-            f.created_at, f.updated_at,
+            f.phone,
+            f.description,
+            f.website,
+            f.created_at,
+            f.updated_at,
         )
         .execute(&self.pool)
         .await?;
@@ -59,22 +63,14 @@ impl FarmRepository {
     }
 
     pub async fn find_by_id(&self, id: Uuid) -> Result<Option<Farm>, AppError> {
-        let row = sqlx::query_as!(
-            Farm,
-            r#"SELECT * FROM farms WHERE id = $1"#,
-            id
-        )
-        .fetch_optional(&self.pool)
-        .await?;
+        let row = sqlx::query_as!(Farm, r#"SELECT * FROM farms WHERE id = $1"#, id)
+            .fetch_optional(&self.pool)
+            .await?;
         Ok(row)
     }
 
     pub async fn find_by_owner(&self, owner_id: Uuid) -> Result<Option<Farm>, AppError> {
-        let farm = sqlx::query_as!(
-            Farm,
-            "SELECT * FROM farms WHERE owner_id = $1",
-            owner_id
-        )
+        let farm = sqlx::query_as!(Farm, "SELECT * FROM farms WHERE owner_id = $1", owner_id)
             .fetch_optional(&self.pool)
             .await?;
         Ok(farm)
@@ -101,12 +97,16 @@ impl FarmRepository {
             WHERE id = $7
             RETURNING *
             "#,
-            f.name, f.address,
-            f.phone, f.description, f.website,
-            f.updated_at, f.id,
+            f.name,
+            f.address,
+            f.phone,
+            f.description,
+            f.website,
+            f.updated_at,
+            f.id,
         )
-            .fetch_one(&self.pool)
-            .await?;
+        .fetch_one(&self.pool)
+        .await?;
         Ok(farm)
     }
 

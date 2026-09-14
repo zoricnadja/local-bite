@@ -2,11 +2,11 @@ use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 pub struct ListQuery {
-    pub page:         Option<i64>,
-    pub limit:        Option<i64>,
-    pub status:       Option<String>,
+    pub page: Option<i64>,
+    pub limit: Option<i64>,
+    pub status: Option<String>,
     pub process_type: Option<String>,
-    pub search:       Option<String>,
+    pub search: Option<String>,
 }
 
 impl ListQuery {

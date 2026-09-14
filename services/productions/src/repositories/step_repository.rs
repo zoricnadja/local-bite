@@ -1,14 +1,14 @@
 use sqlx::PgPool;
 use uuid::Uuid;
 
-use common::errors::{AppError, AppResult};
 use crate::models::insert_step_params::InsertStepParams;
 use crate::models::process_step::ProcessStep;
 use crate::models::update_step_params::UpdateStepParams;
+use common::errors::{AppError, AppResult};
 
 #[derive(Clone)]
 pub struct StepRepository {
-    pub pool: PgPool
+    pub pool: PgPool,
 }
 
 impl StepRepository {
@@ -27,8 +27,8 @@ impl StepRepository {
             "#,
             batch_id
         )
-            .fetch_all(&self.pool)
-            .await?)
+        .fetch_all(&self.pool)
+        .await?)
     }
 
     pub async fn find_by_id_and_batch(
@@ -44,11 +44,12 @@ impl StepRepository {
             FROM   process_steps
             WHERE  id = $1 AND batch_id = $2
             "#,
-            step_id, batch_id
+            step_id,
+            batch_id
         )
-            .fetch_optional(&self.pool)
-            .await?
-            .ok_or_else(|| AppError::NotFound(format!("Step {} not found", step_id)))
+        .fetch_optional(&self.pool)
+        .await?
+        .ok_or_else(|| AppError::NotFound(format!("Step {} not found", step_id)))
     }
 
     pub async fn order_exists(
@@ -85,12 +86,17 @@ impl StepRepository {
             RETURNING id, batch_id, farm_id, step_order, name, description,
                       duration_hours, temperature, created_at, updated_at
             "#,
-            p.id, p.batch_id, p.farm_id, p.step_order,
-            p.name, p.description.as_deref(),
-            p.duration_hours, p.temperature
+            p.id,
+            p.batch_id,
+            p.farm_id,
+            p.step_order,
+            p.name,
+            p.description.as_deref(),
+            p.duration_hours,
+            p.temperature
         )
-            .fetch_one(&self.pool)
-            .await?)
+        .fetch_one(&self.pool)
+        .await?)
     }
 
     pub async fn update(
@@ -112,21 +118,26 @@ impl StepRepository {
             RETURNING id, batch_id, farm_id, step_order, name, description,
                       duration_hours, temperature, created_at, updated_at
             "#,
-            p.step_order, p.name, p.description.as_deref(),
-            p.duration_hours, p.temperature,
-            step_id, batch_id
+            p.step_order,
+            p.name,
+            p.description.as_deref(),
+            p.duration_hours,
+            p.temperature,
+            step_id,
+            batch_id
         )
-            .fetch_one(&self.pool)
-            .await?)
+        .fetch_one(&self.pool)
+        .await?)
     }
 
     pub async fn delete(&self, step_id: Uuid, batch_id: Uuid) -> AppResult<u64> {
         Ok(sqlx::query!(
             "DELETE FROM process_steps WHERE id = $1 AND batch_id = $2",
-            step_id, batch_id
+            step_id,
+            batch_id
         )
-            .execute(&self.pool)
-            .await?
-            .rows_affected())
+        .execute(&self.pool)
+        .await?
+        .rows_affected())
     }
 }

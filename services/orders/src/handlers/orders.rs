@@ -1,4 +1,10 @@
-use axum::{debug_handler, extract::{Path, Query}, http::HeaderMap, response::Response, Extension, Json};
+use axum::{
+    debug_handler,
+    extract::{Path, Query},
+    http::HeaderMap,
+    response::Response,
+    Extension, Json,
+};
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -18,14 +24,12 @@ use common::{
 pub async fn list(
     AuthClaims(_claims): AuthClaims,
     Query(_q): Query<ListOrdersQuery>,
-    Extension(_order_service): Extension<Arc<OrderService>>
+    Extension(_order_service): Extension<Arc<OrderService>>,
 ) -> AppResult<Response> {
     require_role(&_claims, &["FARM_OWNER", "WORKER", "SYSTEM_ADMIN"])?;
     let farm_id = require_farm(&_claims)?;
 
-    let result = _order_service
-        .list_orders(farm_id, &_q)
-        .await?;
+    let result = _order_service.list_orders(farm_id, &_q).await?;
 
     Ok(ok(result))
 }
@@ -36,13 +40,11 @@ pub async fn get_orders_by_user(
     AuthClaims(_claims): AuthClaims,
     Query(_q): Query<ListOrdersQuery>,
     Path(_id): Path<Uuid>,
-    Extension(_order_service): Extension<Arc<OrderService>>
+    Extension(_order_service): Extension<Arc<OrderService>>,
 ) -> AppResult<Response> {
     require_role(&_claims, &["CUSTOMER"])?;
 
-    let result = _order_service
-        .find_all_by_user_id(_id, &_q)
-        .await?;
+    let result = _order_service.find_all_by_user_id(_id, &_q).await?;
 
     Ok(ok(result))
 }
@@ -72,13 +74,14 @@ pub async fn create(
 pub async fn get_one(
     AuthClaims(_claims): AuthClaims,
     Path(_id): Path<Uuid>,
-    Extension(_order_service): Extension<Arc<OrderService>>
+    Extension(_order_service): Extension<Arc<OrderService>>,
 ) -> AppResult<Response> {
-    require_role(&_claims, &["FARM_OWNER", "WORKER", "CUSTOMER", "SYSTEM_ADMIN"])?;
+    require_role(
+        &_claims,
+        &["FARM_OWNER", "WORKER", "CUSTOMER", "SYSTEM_ADMIN"],
+    )?;
 
-    let result = _order_service
-        .get_order(_id)
-        .await?;
+    let result = _order_service.get_order(_id).await?;
 
     Ok(ok(result))
 }
@@ -108,14 +111,12 @@ pub async fn update_status(
 pub async fn delete(
     AuthClaims(_claims): AuthClaims,
     Path(_id): Path<Uuid>,
-    Extension(_order_service): Extension<Arc<OrderService>>
+    Extension(_order_service): Extension<Arc<OrderService>>,
 ) -> AppResult<Response> {
     require_role(&_claims, &["FARM_OWNER"])?;
     let farm_id = require_farm(&_claims)?;
 
-    _order_service
-        .delete_order(_id, farm_id)
-        .await?;
+    _order_service.delete_order(_id, farm_id).await?;
 
     Ok(no_content())
 }
@@ -126,17 +127,15 @@ pub async fn delete(
 pub async fn analytics(
     AuthClaims(_claims): AuthClaims,
     Query(_q): Query<AnalyticsQuery>,
-    Extension(_order_service): Extension<Arc<OrderService>>
+    Extension(_order_service): Extension<Arc<OrderService>>,
 ) -> AppResult<Response> {
     require_role(&_claims, &["FARM_OWNER", "SYSTEM_ADMIN"])?;
     let farm_id = require_farm(&_claims)?;
 
     let from = _q.from.as_deref().unwrap_or("");
-    let to   = _q.to.as_deref().unwrap_or("");
+    let to = _q.to.as_deref().unwrap_or("");
 
-    let result = _order_service
-        .get_analytics(farm_id, from, to)
-        .await?;
+    let result = _order_service.get_analytics(farm_id, from, to).await?;
 
     Ok(ok(result))
 }

@@ -1,3 +1,6 @@
+use axum::body::Body;
+use axum::http::{header, StatusCode};
+use axum::response::IntoResponse;
 use axum::{
     debug_handler,
     extract::{Multipart, Path},
@@ -5,9 +8,6 @@ use axum::{
     Extension,
 };
 use std::sync::Arc;
-use axum::body::Body;
-use axum::http::{header, StatusCode};
-use axum::response::IntoResponse;
 use tokio::fs::File;
 use tokio_util::io::ReaderStream;
 use uuid::Uuid;
@@ -55,10 +55,12 @@ pub async fn upload_image(
         }
     }
 
-    let bytes = file_bytes
-        .ok_or_else(|| AppError::BadRequest("No 'image' field found in form".into()))?;
+    let bytes =
+        file_bytes.ok_or_else(|| AppError::BadRequest("No 'image' field found in form".into()))?;
 
-    let updated = _image_service.upload(_id, farm_id, bytes, &mime_type).await?;
+    let updated = _image_service
+        .upload(_id, farm_id, bytes, &mime_type)
+        .await?;
     Ok(ok(updated))
 }
 
@@ -73,9 +75,7 @@ pub async fn get_image(
     serve_file(path.as_ref()).await
 }
 
-
 async fn serve_file(full_path: &std::path::Path) -> AppResult<Response> {
-
     let file = File::open(&full_path)
         .await
         .map_err(|_| AppError::NotFound("Image not found on disk".into()))?;

@@ -1,8 +1,11 @@
+use crate::{
+    errors::AppError,
+    jwt::{decode_jwt, Claims},
+};
 use axum::{
     extract::FromRequestParts,
     http::{header::AUTHORIZATION, request::Parts},
 };
-use crate::{errors::AppError, jwt::{decode_jwt, Claims}};
 
 pub struct AuthClaims(pub Claims);
 
@@ -19,9 +22,9 @@ where
             .and_then(|v| v.to_str().ok())
             .ok_or_else(|| AppError::Unauthorized("Missing Authorization header".into()))?;
 
-        let token = header
-            .strip_prefix("Bearer ")
-            .ok_or_else(|| AppError::Unauthorized("Invalid Authorization format — use 'Bearer <token>'".into()))?;
+        let token = header.strip_prefix("Bearer ").ok_or_else(|| {
+            AppError::Unauthorized("Invalid Authorization format — use 'Bearer <token>'".into())
+        })?;
 
         let secret = std::env::var("JWT_SECRET").expect("JWT_SECRET must be set");
 

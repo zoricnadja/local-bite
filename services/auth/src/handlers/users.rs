@@ -1,15 +1,15 @@
-use std::sync::Arc;
-use axum::{debug_handler, Extension, Json};
-use axum::extract::Path;
-use axum::response::IntoResponse;
-use http::StatusCode;
-use uuid::Uuid;
-use common::errors::AppError;
-use common::middleware::AuthClaims;
-use common::response::ok;
 use crate::dtos::update_user_request::UpdateUserRequest;
 use crate::service::service::AuthService;
 use crate::service::user_service::UserService;
+use axum::extract::Path;
+use axum::response::IntoResponse;
+use axum::{debug_handler, Extension, Json};
+use common::errors::AppError;
+use common::middleware::AuthClaims;
+use common::response::ok;
+use http::StatusCode;
+use std::sync::Arc;
+use uuid::Uuid;
 
 #[debug_handler]
 pub async fn me(
