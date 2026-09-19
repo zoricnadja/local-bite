@@ -1,0 +1,9 @@
+FROM rust AS tests
+WORKDIR /app
+COPY Cargo.toml Cargo.lock ./
+COPY services services
+COPY libs libs
+COPY .sqlx .sqlx
+ENV SQLX_OFFLINE=true
+RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked --mount=type=cache,target=/app/target,sharing=locked cargo test --locked --release --workspace && mkdir -p /tests && find target/release/deps -maxdepth 1 -type f -name 'raw_materials-*' -executable -exec cp {} /tests/consumption \;
+CMD ["/tests/consumption", "--ignored", "--nocapture"]

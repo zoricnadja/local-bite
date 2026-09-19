@@ -1,9 +1,9 @@
 use crate::models::process_step_ref::ProcessStepRef;
 use crate::models::raw_material_ref::RawMaterialRef;
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 use uuid::Uuid;
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct BatchRef {
     pub id: Uuid,
     pub name: String,

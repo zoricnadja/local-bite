@@ -1,10 +1,13 @@
 services:
   rabbitmq:
     image: rabbitmq:3-management-alpine
+    hostname: local-bite-rabbitmq
     container_name: local-bite-rabbitmq
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
     ports:
       - "5672:5672"
       - "15672:15672"
@@ -46,6 +49,7 @@ services:
     container_name: auth-service
     environment:
       DATABASE_URL: ${AUTH_DATABASE_URL}
+      RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672/%2f
       JWT_SECRET: ${JWT_SECRET}
       RUST_LOG: ${AUTH_RUST_LOG}
       PORT: ${AUTH_PORT}
@@ -80,6 +84,7 @@ services:
     container_name: raw-materials-service
     environment:
       DATABASE_URL: ${RAW_MATERIALS_DATABASE_URL}
+      RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672/%2f
       RUST_LOG: ${RAW_MATERIALS_RUST_LOG}
       PORT: ${RAW_MATERIALS_PORT}
       JWT_SECRET: ${JWT_SECRET}
@@ -114,15 +119,19 @@ services:
     container_name: products-service
     environment:
       DATABASE_URL: ${PRODUCTS_DATABASE_URL}
+      RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672/%2f
       JWT_SECRET: ${JWT_SECRET}
       RUST_LOG: ${PRODUCTS_RUST_LOG}
       PORT: ${PRODUCTS_PORT}
-      PUBLIC_TRACE_URL: ${PUBLIC_TRACE_URL}
+      READ_MODELS_URL: http://read-models-service:3006
+      PUBLIC_TRACE_URL: ${PUBLIC_TRACE_URL:-http://localhost/trace}
       RABBITMQ_MANAGEMENT_URL: ${RABBITMQ_MANAGEMENT_URL}
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
     ports:
       - ${PRODUCTS_PORT}:${PRODUCTS_PORT}
+    volumes:
+      - products_uploads:/app/uploads
     depends_on:
       products-db:
         condition: service_healthy
@@ -154,6 +163,7 @@ services:
     container_name: productions-service
     environment:
       DATABASE_URL: ${PRODUCTIONS_DATABASE_URL}
+      RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672/%2f
       RUST_LOG: ${PRODUCTIONS_RUST_LOG}
       JWT_SECRET: ${JWT_SECRET}
       PORT: ${PRODUCTIONS_PORT}
@@ -189,6 +199,7 @@ services:
     container_name: orders-service
     environment:
       DATABASE_URL: ${ORDERS_DATABASE_URL}
+      RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672/%2f
       RUST_LOG: ${ORDERS_RUST_LOG}
       JWT_SECRET: ${JWT_SECRET}
       PORT: ${ORDERS_PORT}
@@ -198,6 +209,40 @@ services:
     depends_on:
       orders-db:
         condition: service_healthy
+
+  read-models-db:
+    image: postgres:15
+    container_name: read-models-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: read_models_db
+    ports:
+      - "127.0.0.1:5437:5432"
+    volumes:
+      - read_models_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d read_models_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  read-models-service:
+    build:
+      context: .
+      dockerfile: services/read-models/Dockerfile
+    container_name: read-models-service
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@read-models-db:5432/read_models_db
+      JWT_SECRET: ${JWT_SECRET}
+      RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672/%2f
+      PORT: 3006
+      RUST_LOG: info
+    depends_on:
+      read-models-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
 
   nginx:
     image: nginx:alpine
@@ -212,19 +257,19 @@ services:
       - products-service
       - orders-service
       - frontend
+      - read-models-service
 
   frontend:
     build:
       context: ./frontend/local-bite-frontend
       dockerfile: Dockerfile
-    ports:
-      - "4200"
-    volumes:
-      - ./frontend/local-bite-frontend/src:/app/src
-    environment:
-      - NODE_ENV=${NODE_ENV}
+    expose:
+      - "80"
 
 volumes:
+  rabbitmq_data:
+  read_models_db_data:
+  products_uploads:
   auth_db_data:
   raw_materials_db_data:
   products_db_data:

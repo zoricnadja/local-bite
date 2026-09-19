@@ -9,7 +9,7 @@ mod service;
 use crate::db::create_pool;
 use crate::handlers::auth::{login, register};
 use crate::handlers::farms::{
-    add_worker, create_farm, delete_farm, get_farm, list_workers, update_farm,
+    add_worker, create_farm, delete_farm, get_farm, list_workers, list_farms, update_farm,
 };
 use crate::handlers::users::{delete_user, list_users, me, update_user};
 use crate::middleware::auth_middleware::auth_middleware;
@@ -38,6 +38,7 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     let pool = create_pool().await?;
+    common::events::start_outbox(pool.clone(), "auth");
     let user_repo = Arc::new(repository::repository::UserRepository::new(pool.clone()));
     let auth_service = Arc::new(AuthService::new(user_repo.clone(), jwt_secret.clone()));
     let farm_repo = Arc::new(FarmRepository::new(pool));
@@ -46,7 +47,7 @@ async fn main() -> anyhow::Result<()> {
         user_repo.clone(),
         jwt_secret.clone(),
     ));
-    let user_service = Arc::new(UserService::new(user_repo.clone(), jwt_secret.clone()));
+    let user_service = Arc::new(UserService::new(user_repo.clone()));
     let cors = CorsLayer::new()
         .allow_origin(Any)
         .allow_methods([
@@ -63,8 +64,9 @@ async fn main() -> anyhow::Result<()> {
         .route("/users", get(list_users))
         .route("/users/{id}", put(update_user))
         .route("/users/{id}", delete(delete_user))
-        .route("/farms", post(create_farm))
+        .route("/farms", post(create_farm).get(list_farms))
         .route("/farms/{id}", get(get_farm))
+        .route("/farms/{id}/trace", get(crate::handlers::farms::trace_farm))
         .route("/farms/{id}", put(update_farm))
         .route("/farms/{id}", delete(delete_farm))
         .route("/farms/{id}/workers", post(add_worker))
@@ -72,6 +74,7 @@ async fn main() -> anyhow::Result<()> {
         .route_layer(from_fn(auth_middleware));
 
     let app = Router::new()
+        .route("/health", get(|| async { "ok" }))
         .route("/register", post(register))
         .route("/login", post(login))
         .merge(protected)

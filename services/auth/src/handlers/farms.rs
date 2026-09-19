@@ -11,8 +11,24 @@ use common::{
 
 use crate::dtos::register_request::RegisterRequest;
 use crate::dtos::update_farm_request::UpdateFarmRequest;
-use crate::dtos::{add_worker_request::AddWorkerRequest, create_farm_request::CreateFarmRequest};
+use crate::dtos::{create_farm_request::CreateFarmRequest};
 use crate::service::farm_service::FarmService;
+
+// A short-lived service token exposes only the producer's public name.
+pub async fn trace_farm(
+    Extension(service): Extension<Arc<FarmService>>,
+    AuthClaims(claims): AuthClaims,
+    Path(id): Path<Uuid>,
+) -> Result<impl IntoResponse, AppError> {
+    if claims.role != "TRACEABILITY" || claims.farm_id != Some(id) {
+        return Err(AppError::Forbidden("Traceability scope mismatch".into()));
+    }
+    let farm = service.farm_repository.find_by_id(id).await?
+        .ok_or_else(|| AppError::NotFound("Farm not found".into()))?;
+    #[derive(serde::Serialize)]
+    struct Producer { name: String }
+    Ok(ok(Producer { name: farm.name }))
+}
 // ── POST /farms ──────────────────────────────────────────────────────────────
 
 pub async fn create_farm(

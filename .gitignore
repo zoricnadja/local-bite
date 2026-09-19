@@ -33,3 +33,9 @@ target
 
 # Added by cargo
 /target
+
+# Local PDF rendering checks
+/tmp/pdfs/
+
+/tmp/backups/
+/tmp/verification/

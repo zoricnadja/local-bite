@@ -14,14 +14,14 @@ use common::{errors::AppError, jwt::Claims};
 #[derive(Clone)]
 pub struct UserService {
     pub user_repo: Arc<UserRepository>,
-    pub jwt_secret: String,
+
 }
 
 impl UserService {
-    pub fn new(user_repo: Arc<UserRepository>, jwt_secret: String) -> Self {
+    pub fn new(user_repo: Arc<UserRepository>) -> Self {
         Self {
             user_repo,
-            jwt_secret,
+
         }
     }
 
@@ -104,7 +104,7 @@ impl UserService {
     }
 
     fn require_admin(&self, claims: &Claims) -> Result<(), AppError> {
-        if claims.role != "ADMIN" {
+        if claims.role != "SYSTEM_ADMIN" {
             return Err(AppError::Forbidden("Admin access required".into()));
         }
         Ok(())

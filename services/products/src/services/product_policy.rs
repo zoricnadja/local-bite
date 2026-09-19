@@ -32,10 +32,10 @@ fn required_fields(request: &CreateProductRequest) -> AppResult<()> {
     if request.product_type.trim().is_empty() {
         return Err(AppError::BadRequest("Product type cannot be empty".into()));
     }
-    if request.price < 0.0 {
+    if !request.price.is_finite() || request.price < 0.0 {
         return Err(AppError::BadRequest("Price cannot be negative".into()));
     }
-    if request.quantity < 0.0 {
+    if !request.quantity.is_finite() || request.quantity < 0.0 || request.quantity >= 1_000_000_000.0 || (request.quantity*1000.0-(request.quantity*1000.0).round()).abs()>0.000001 {
         return Err(AppError::BadRequest("Quantity cannot be negative".into()));
     }
     Ok(())
@@ -45,7 +45,7 @@ pub struct ProductPolicyFactory;
 impl ProductPolicyFactory {
     pub fn for_type(product_type: &str) -> Box<dyn ProductPolicy> {
         match product_type.trim().to_ascii_lowercase().as_str() {
-            "food" | "meat" | "dairy" | "honey" | "juice" | "preserve" => {
+            "food" | "meat" | "dairy" | "honey" | "juice" | "preserve" | "cheese" | "sausage" | "vegetable" | "fruit" => {
                 Box::new(FoodProductPolicy)
             }
             _ => Box::new(GenericProductPolicy),

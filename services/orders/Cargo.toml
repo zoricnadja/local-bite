@@ -20,3 +20,4 @@ bigdecimal = { workspace = true }
 reqwest = { workspace = true }
 futures = { workspace = true }
 rust_decimal = "1.40.0"
+serde_json = { workspace = true }

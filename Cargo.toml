@@ -5,7 +5,8 @@ members = [
     "services/raw-materials",
     "services/productions",
     "services/products",
-    "services/orders"
+    "services/orders",
+    "services/read-models"
 ]
 resolver = "2"
 

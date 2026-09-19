@@ -5,18 +5,17 @@ use uuid::Uuid;
 
 use crate::dtos::create_product_request::CreateProductRequest;
 use crate::dtos::update_product_request::UpdateProductRequest;
-use crate::models::insert_product_params::InsertParams;
+
 use crate::models::product::Product;
 use crate::models::query::ListQuery;
 use crate::models::update_product_params::UpdateParams;
 use crate::repositories::product_repository::ProductRepository;
 use crate::services::product_policy::ProductPolicyFactory;
-use crate::utils::qr_utils;
+
 use chrono::Utc;
 use common::errors::{AppError, AppResult};
-use common::events::{DomainEvent, RabbitMqEventPublisher};
 use common::paginated_response::PaginatedResponse;
-use serde::Serialize;
+
 
 fn dec(v: f64) -> BigDecimal {
     BigDecimal::from_str(&v.to_string()).unwrap_or_default()
@@ -25,23 +24,15 @@ fn dec(v: f64) -> BigDecimal {
 #[derive(Clone)]
 pub struct ProductService {
     pub product_repository: Arc<ProductRepository>,
-    uploads_dir: String,
-    events: RabbitMqEventPublisher,
+
 }
 
-#[derive(Serialize)]
-struct ProductCreatedEvent {
-    product_id: Uuid,
-    farm_id: Uuid,
-    name: String,
-}
 
 impl ProductService {
-    pub fn new(product_repository: Arc<ProductRepository>, uploads_dir: String) -> Self {
+    pub fn new(product_repository: Arc<ProductRepository>) -> Self {
         Self {
             product_repository,
-            uploads_dir,
-            events: RabbitMqEventPublisher::from_env(),
+
         }
     }
 
@@ -72,44 +63,15 @@ impl ProductService {
     }
 
     pub async fn create(&self, farm_id: Uuid, req: CreateProductRequest) -> AppResult<Product> {
-        ProductPolicyFactory::for_type(&req.product_type).validate(&req)?;
-
-        let id = Uuid::new_v4();
-        let qr_token = Uuid::new_v4();
-        let qr_path = qr_utils::generate_qr(qr_token, &self.uploads_dir)
-            .map(Some)
-            .unwrap_or(None);
-
-        let product = self
-            .product_repository
-            .insert(InsertParams {
-                id,
-                farm_id,
-                name: req.name.trim().to_string(),
-                product_type: req.product_type.trim().to_string(),
-                description: req.description,
-                quantity: dec(req.quantity),
-                unit: req.unit.trim().to_string(),
-                price: dec(req.price),
-                batch_id: req.batch_id,
-                qr_token,
-                qr_path,
-            })
-            .await?;
-        self.events.publish_async(DomainEvent {
-            event_type: "product.created",
-            occurred_at: Utc::now().to_rfc3339(),
-            data: ProductCreatedEvent {
-                product_id: product.id,
-                farm_id,
-                name: product.name.clone(),
-            },
-        });
-        Ok(product)
+        let _ = (farm_id,req);
+        Err(AppError::BadRequest("Complete a production batch to create its output in Storage".into()))
     }
 
     pub async fn get_one(&self, id: Uuid) -> AppResult<Product> {
-        self.product_repository.find_by_id(id).await
+        let mut product=self.product_repository.find_by_id(id).await?;
+        let completed:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM production_states WHERE batch_id=$1 AND farm_id=$2 AND status='COMPLETED' AND NOT deleted)").bind(product.batch_id).bind(product.farm_id).fetch_one(&self.product_repository.pool).await?;
+        product.is_active &= completed && product.expiry_date.is_none_or(|d|d>=Utc::now().date_naive());
+        Ok(product)
     }
 
     pub async fn update(
@@ -122,6 +84,22 @@ impl ProductService {
             .product_repository
             .find_by_id_and_farm(id, farm_id)
             .await?;
+
+        ProductPolicyFactory::for_type(req.product_type.as_deref().unwrap_or(&existing.product_type)).validate(&CreateProductRequest {
+            name:req.name.clone().unwrap_or_else(||existing.name.clone()),product_type:req.product_type.clone().unwrap_or_else(||existing.product_type.clone()),description:req.description.clone(),
+            quantity:req.quantity.unwrap_or_else(||existing.quantity.to_string().parse().unwrap_or(0.0)),
+            unit:req.unit.clone().unwrap_or_else(||existing.unit.clone()),price:req.price.unwrap_or_else(||existing.price.to_string().parse().unwrap_or(0.0)),expiry_date:req.expiry_date.or(existing.expiry_date),batch_id:req.batch_id.or(existing.batch_id)
+        })?;
+        if req.quantity.is_some_and(|v|!v.is_finite() || v<0.0){return Err(AppError::BadRequest("Invalid quantity".into()));}
+        if req.is_active.unwrap_or(existing.is_active) {
+            self.validate_batch(farm_id, req.batch_id.or(existing.batch_id), req.expiry_date.or(existing.expiry_date)).await?;
+            if !req.price.as_ref().map_or_else(|| existing.price > BigDecimal::from(0), |p| p.is_finite() && *p>0.0) { return Err(AppError::BadRequest("Set a positive price before placing a product on sale".into())); }
+        }
+        let measured:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM production_outputs WHERE product_id=$1)").bind(id).fetch_one(&self.product_repository.pool).await?;
+        if measured && (req.batch_id.is_some_and(|b| Some(b)!=existing.batch_id) || req.unit.as_ref().is_some_and(|u| *u!=existing.unit) || req.quantity.is_some_and(|q| dec(q)!=existing.quantity)) {
+            return Err(AppError::BadRequest("Measured production quantity, unit and batch cannot be changed on a product".into()));
+        }
+        if req.price.is_some_and(|p| !p.is_finite() || p<0.0) { return Err(AppError::BadRequest("Price must be a non-negative number".into())); }
 
         self.product_repository
             .update(
@@ -139,9 +117,10 @@ impl ProductService {
                         .as_deref()
                         .or(existing.description.as_deref())
                         .map(str::to_string),
-                    quantity: req.quantity.map(dec).unwrap_or(existing.quantity),
+                    quantity: req.quantity.map(dec),
                     unit: req.unit.as_deref().unwrap_or(&existing.unit).to_string(),
                     price: req.price.map(dec).unwrap_or(existing.price),
+                    expiry_date: req.expiry_date.or(existing.expiry_date),
                     batch_id: req.batch_id.or(existing.batch_id),
                     is_active: req.is_active.unwrap_or(existing.is_active),
                 },
@@ -157,21 +136,30 @@ impl ProductService {
         Ok(())
     }
 
-    pub async fn decrement(&self, id: Uuid, amount: f64) -> AppResult<Product> {
-        if amount <= 0.0 {
-            return Err(AppError::BadRequest("Decrement amount must be > 0".into()));
+    async fn validate_batch(&self, farm_id: Uuid, batch_id: Option<Uuid>, expiry: Option<chrono::NaiveDate>) -> AppResult<()> {
+        if batch_id.is_none() { return Err(AppError::BadRequest("Link a completed production batch before placing the product on sale".into())); }
+        if let Some(id) = batch_id {
+            let token = super::provenance_service::trace_token(farm_id, Some(id))?;
+            let batch = crate::dtos::clients::fetch_batch(id, &token).await
+                .map_err(|_| AppError::BadRequest("Select an available production batch from your farm".into()))?;
+            if batch.status != "COMPLETED" {
+                return Err(AppError::BadRequest("Production must be completed before the product can be active".into()));
+            }
+            if let (Some(expiry), Some(end)) = (expiry, batch.end_date) {
+                if let Ok(end) = chrono::NaiveDate::parse_from_str(&end, "%Y-%m-%d") {
+                    if expiry < end {
+                        return Err(AppError::BadRequest("Product expiry cannot be before production ends".into()));
+                    }
+                }
+            }
         }
-
-        let product = self.product_repository.find_by_id(id).await?;
-
-        let new_qty = &product.quantity - &dec(amount);
-        if new_qty < BigDecimal::from(0) {
-            return Err(AppError::BadRequest(format!(
-                "Insufficient stock for '{}': available {}, requested {}",
-                product.name, product.quantity, amount
-            )));
-        }
-
-        self.product_repository.update_quantity(id, new_qty).await
+        Ok(())
     }
+
+
+}
+
+pub fn authorize_read(product:&Product,claims:&common::jwt::Claims)->AppResult<()> {
+    let allowed=match claims.role.as_str(){"SYSTEM_ADMIN"=>true,"CUSTOMER"=>product.is_active && product.expiry_date.is_none_or(|d|d>=Utc::now().date_naive()),"FARM_OWNER"|"WORKER"=>claims.farm_id==Some(product.farm_id),_=>false};
+    if allowed {Ok(())}else{Err(AppError::NotFound("Product not found".into()))}
 }

@@ -1,8 +1,8 @@
 use crate::models::batch_ref::BatchRef;
 use crate::models::product::Product;
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct ProvenanceResponse {
     pub product: Product,
     pub farm_name: Option<String>,

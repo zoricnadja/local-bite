@@ -6,34 +6,6 @@ use crate::models::raw_material_ref::RawMaterialRef;
 use anyhow::{anyhow, Context};
 use serde::Deserialize;
 use uuid::Uuid;
-// ── Auth Service ──────────────────────────────────────────────────────────────
-
-#[derive(Deserialize)]
-struct FarmResponse {
-    data: FarmData,
-}
-
-#[derive(Deserialize)]
-struct FarmData {
-    name: String,
-}
-
-pub async fn fetch_farm_name(farm_id: Uuid, token: &str) -> Option<String> {
-    let base =
-        std::env::var("AUTH_SERVICE_URL").unwrap_or_else(|_| "http://auth-service:3001".into());
-    let url = format!("{}/farms/{}", base, farm_id);
-
-    let client = reqwest::Client::new();
-    let resp = client.get(&url).bearer_auth(token).send().await.ok()?;
-
-    if !resp.status().is_success() {
-        return None;
-    }
-
-    let body: FarmResponse = resp.json().await.ok()?;
-    Some(body.data.name)
-}
-
 // ── Production Service ────────────────────────────────────────────────────────
 
 #[derive(Deserialize)]
@@ -71,13 +43,16 @@ struct RawMaterialApiData {
     quantity_used: f64,
     unit: String,
     origin: Option<String>,
+    harvest_date: Option<chrono::NaiveDate>,
+    received_date: Option<String>,
+    expiry_date: Option<String>,
     supplier: Option<String>,
 }
 
 pub async fn fetch_batch(batch_id: Uuid, token: &str) -> anyhow::Result<BatchRef> {
     let base =
-        std::env::var("PRODUCTION_SERVICE_URL").unwrap_or_else(|_| "http://production:3003".into());
-    let url = format!("{}/batches/{}", base, batch_id);
+        std::env::var("PRODUCTION_SERVICE_URL").unwrap_or_else(|_| "http://productions-service:3004".into());
+    let url = format!("{}/batches/{}/trace", base, batch_id);
 
     let client = reqwest::Client::new();
     let resp = client
@@ -128,6 +103,9 @@ pub async fn fetch_batch(batch_id: Uuid, token: &str) -> anyhow::Result<BatchRef
                 unit: r.unit,
                 origin: r.origin,
                 supplier: r.supplier,
+                harvest_date: r.harvest_date,
+                received_date: r.received_date,
+                expiry_date: r.expiry_date,
             })
             .collect(),
     })

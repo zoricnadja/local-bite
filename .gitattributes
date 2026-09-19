@@ -1,0 +1,9 @@
+# These historical migrations were applied with LF line endings. Keep their
+# SQLx checksums identical on Windows and in Linux containers.
+services/productions/migrations/*.sql text eol=lf
+services/orders/migrations/*.sql text eol=lf
+services/auth/migrations/*.sql text eol=lf
+services/products/migrations/20260916000000_product_expiry.sql text eol=lf
+services/raw-materials/migrations/20260916000000_received_date.sql text eol=lf
+services/*/migrations/20260917000000_*.sql text eol=lf
+services/*/migrations/20260918000000_*.sql text eol=lf

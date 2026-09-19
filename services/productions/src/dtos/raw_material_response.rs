@@ -9,5 +9,8 @@ pub struct RawMaterialResponse {
     pub quantity_used: f64,
     pub unit: String,
     pub origin: Option<String>,
+    pub harvest_date: Option<chrono::NaiveDate>,
+    pub received_date: Option<chrono::NaiveDate>,
+    pub expiry_date: Option<chrono::NaiveDate>,
     pub supplier: Option<String>,
 }

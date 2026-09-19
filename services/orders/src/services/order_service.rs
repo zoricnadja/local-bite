@@ -1,16 +1,16 @@
-use bigdecimal::BigDecimal;
-use std::collections::HashMap;
-use std::str::FromStr;
+
+
+
 use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::dtos::analytics::analytics_response::{AnalyticsResponse, MonthlyRevenue};
 use crate::dtos::order::create_order_request::CreateOrderRequest;
-use crate::dtos::order::create_order_response::CreateOrderResponse;
+
 use crate::dtos::order::list_orders_query::ListOrdersQuery;
 use crate::dtos::order::order_response::OrderResponse;
 use crate::dtos::order::update_status_request::UpdateStatusRequest;
-use crate::dtos::order_item::new_order_item_dto::NewOrderItem;
+
 use crate::dtos::order_item::order_item_response::OrderItemResponse;
 use crate::models::order::Order;
 use crate::models::order_item::OrderItem;
@@ -19,14 +19,14 @@ use crate::repositories::{
     order_item_repository::OrderItemRepository,
     order_repository::{bigdecimal_to_f64, OrderRepository},
 };
-use crate::services::product_service::{decrement_product_quantity, fetch_product};
+
 use common::errors::{AppError, AppResult};
 use common::paginated_response::PaginatedResponse;
 
 #[derive(Clone)]
 pub struct OrderService {
-    order_repository: Arc<OrderRepository>,
-    order_item_repository: Arc<OrderItemRepository>,
+    pub(crate) order_repository: Arc<OrderRepository>,
+    pub(crate) order_item_repository: Arc<OrderItemRepository>,
 }
 
 impl OrderService {
@@ -76,9 +76,9 @@ impl OrderService {
     ) -> AppResult<PaginatedResponse<OrderResponse>> {
         let (orders, total) = tokio::try_join!(
             self.order_repository.find_all_by_user_id(_id, q),
-            self.order_repository.count(_id, q),
+            self.order_repository.count_by_user(_id, q),
         )?;
-        tracing::info!("{:?}", orders);
+
         let mut responses = Vec::with_capacity(orders.len());
         for order in orders {
             let items = self
@@ -98,8 +98,15 @@ impl OrderService {
 
     // ── Get single order ──────────────────────────────────────────────────────
 
-    pub async fn get_order(&self, id: Uuid) -> AppResult<OrderResponse> {
+    pub async fn get_order(&self, id: Uuid, claims: &common::jwt::Claims) -> AppResult<OrderResponse> {
         let order = self.order_repository.find_by_id(id).await?;
+        let allowed = match claims.role.as_str() {
+            "SYSTEM_ADMIN" => true,
+            "CUSTOMER" => order.customer_id == Some(claims.sub),
+            "FARM_OWNER" | "WORKER" => claims.farm_id == Some(order.farm_id),
+            _ => false,
+        };
+        if !allowed { return Err(AppError::NotFound("Order not found".into())); }
         let items = self
             .order_item_repository
             .find_by_order_id(order.id)
@@ -109,142 +116,8 @@ impl OrderService {
 
     // ── Create order ──────────────────────────────────────────────────────────
 
-    pub async fn create_order(
-        &self,
-        _id: Uuid,
-        _email: &str,
-        req: CreateOrderRequest,
-        token: &str,
-    ) -> AppResult<CreateOrderResponse> {
-        // ── 1. Basic validation ───────────────────────────────────────────────────
-        if req.items.is_empty() {
-            return Err(AppError::BadRequest(
-                "Order must have at least one item".into(),
-            ));
-        }
-        for item in &req.items {
-            if item.quantity <= 0.0 {
-                return Err(AppError::BadRequest(format!(
-                    "quantity must be > 0 for product {}",
-                    item.product_id
-                )));
-            }
-        }
-
-        // ── 2. Fetch all products concurrently ────────────────────────────────────
-        let product_futures: Vec<_> = req
-            .items
-            .iter()
-            .map(|item| fetch_product(item.product_id, token))
-            .collect();
-
-        let snapshots = futures_join_all(product_futures).await?;
-
-        // ── 3. Validate availability + stock ─────────────────────────────────────
-        for (item, snap) in req.items.iter().zip(snapshots.iter()) {
-            if !snap.is_active {
-                return Err(AppError::BadRequest(format!(
-                    "Product '{}' is not currently available",
-                    snap.name
-                )));
-            }
-
-            let requested = BigDecimal::from_str(&item.quantity.to_string()).unwrap_or_default();
-            let available = BigDecimal::from_str(&snap.quantity.to_string()).unwrap_or_default();
-            if requested > available {
-                return Err(AppError::BadRequest(format!(
-                    "Insufficient stock for '{}': available {}, requested {}",
-                    snap.name, available, requested
-                )));
-            }
-        }
-
-        // ── 4. Build order items ──────────────────────────────────────────────────
-        let new_items: Vec<NewOrderItem> = req
-            .items
-            .iter()
-            .zip(snapshots.iter())
-            .map(|(item, snap)| NewOrderItem {
-                product_id: snap.id,
-                product_name: snap.name.clone(),
-                product_type: snap.product_type.clone(),
-                farm_id: snap.farm_id.unwrap(),
-                unit_price: BigDecimal::from_str(&snap.price.to_string()).unwrap_or_default(),
-                quantity: BigDecimal::from_str(&item.quantity.to_string()).unwrap_or_default(),
-                unit: snap.unit.clone(),
-            })
-            .collect();
-
-        // ── 5. Group by farm + calculate totals ───────────────────────────────────
-        let mut by_farm: HashMap<Uuid, Vec<&NewOrderItem>> = HashMap::new();
-        for item in &new_items {
-            by_farm.entry(item.farm_id).or_default().push(item);
-        }
-
-        // ── 6. Persist orders in a transaction ───────────────────────────────────
-        let mut tx = self.order_repository.pool.begin().await?;
-        let mut created_orders: Vec<(Order, Vec<OrderItem>)> = Vec::new();
-
-        for (farm_id, farm_items) in &by_farm {
-            let farm_total: BigDecimal = farm_items
-                .iter()
-                .map(|i| &i.unit_price * &i.quantity)
-                .fold(BigDecimal::from(0), |acc, x| acc + x);
-
-            let order = self
-                .order_repository
-                .insert(
-                    &mut tx,
-                    *farm_id,
-                    req.customer_id.unwrap_or(_id),
-                    req.customer_name.as_deref(),
-                    req.customer_email
-                        .clone()
-                        .unwrap_or_else(|| _email.to_string()),
-                    req.notes.as_deref(),
-                    &farm_total,
-                )
-                .await?;
-
-            let items = self
-                .order_item_repository
-                .insert_batch(&mut tx, order.id, farm_items)
-                .await?;
-
-            created_orders.push((order, items));
-        }
-
-        tx.commit().await?;
-
-        // ── 7. Decrement stock after successful commit ────────────────────────────
-        let decrement_futures: Vec<_> = req
-            .items
-            .iter()
-            .map(|item| decrement_product_quantity(item.product_id, item.quantity, token))
-            .collect();
-
-        for (item, result) in req
-            .items
-            .iter()
-            .zip(futures::future::join_all(decrement_futures).await)
-        {
-            if let Err(e) = result {
-                tracing::error!(
-                    product_id = %item.product_id,
-                    quantity   = %item.quantity,
-                    error      = %e,
-                    "Failed to decrement product quantity after order commit"
-                );
-            }
-        }
-
-        // ── 8. Return response ────────────────────────────────────────────────────
-        let orders = created_orders
-            .into_iter()
-            .map(|(o, i)| map_order_response(o, i))
-            .collect();
-
-        Ok(CreateOrderResponse { orders })
+    pub async fn create_order(&self, id: Uuid, email: &str, req: CreateOrderRequest, token: &str, key: Uuid) -> AppResult<serde_json::Value> {
+        crate::checkout::submit(self,key,id,email,req,token).await
     }
     // ── Update status ─────────────────────────────────────────────────────────
 
@@ -255,7 +128,9 @@ impl OrderService {
         req: UpdateStatusRequest,
         caller_role: &str,
     ) -> AppResult<OrderResponse> {
-        let current = self.order_repository.find_by_id(id).await?;
+        let mut tx = self.order_repository.pool.begin().await?;
+        let current = sqlx::query_as::<_, Order>("SELECT * FROM orders WHERE id=$1 AND farm_id=$2 AND NOT is_deleted FOR UPDATE")
+            .bind(id).bind(farm_id).fetch_optional(&mut *tx).await?.ok_or_else(||AppError::NotFound("Order not found".into()))?;
 
         let current_status = OrderStatus::from_str(&current.status)
             .ok_or_else(|| AppError::Internal(anyhow::anyhow!("Unknown current status")))?;
@@ -278,11 +153,13 @@ impl OrderService {
             )));
         }
 
-        let updated = self
-            .order_repository
-            .update_status(id, farm_id, next_status.as_str())
-            .await?;
-
+        let updated = sqlx::query_as::<_,Order>("UPDATE orders SET status=$3 WHERE id=$1 AND farm_id=$2 RETURNING *")
+            .bind(id).bind(farm_id).bind(next_status.as_str()).fetch_one(&mut *tx).await?;
+        if next_status == OrderStatus::Cancelled {
+            sqlx::query("INSERT INTO stock_release_jobs(order_id,checkout_id,farm_id) SELECT order_id,checkout_id,farm_id FROM order_stock_links WHERE order_id=$1 ON CONFLICT DO NOTHING").bind(id).execute(&mut *tx).await?;
+        }
+        tx.commit().await?;
+        let _ = crate::checkout::release_pending(self).await;
         let items = self
             .order_item_repository
             .find_by_order_id(updated.id)
@@ -293,31 +170,19 @@ impl OrderService {
 
     // ── Cancel order ──────────────────────────────────────────────────────────
 
-    pub async fn cancel_order(&self, id: Uuid, farm_id: Uuid) -> AppResult<OrderResponse> {
-        self.update_status(
-            id,
-            farm_id,
-            UpdateStatusRequest {
-                status: "CANCELLED".into(),
-            },
-            "FARM_OWNER",
-        )
-        .await
-    }
+
 
     // ── Delete order ──────────────────────────────────────────────────────────
 
     pub async fn delete_order(&self, id: Uuid, farm_id: Uuid) -> AppResult<()> {
-        let order = self.order_repository.find_by_id(id).await?;
-
-        // Only PENDING or CANCELLED orders can be deleted
-        if !matches!(order.status.as_str(), "PENDING" | "CANCELLED") {
-            return Err(AppError::BadRequest(
-                "Only PENDING or CANCELLED orders can be deleted".into(),
-            ));
-        }
-
-        self.order_repository.soft_delete(id, farm_id).await
+        let mut tx=self.order_repository.pool.begin().await?;
+        let order=sqlx::query_as::<_,Order>("SELECT * FROM orders WHERE id=$1 AND farm_id=$2 AND NOT is_deleted FOR UPDATE").bind(id).bind(farm_id).fetch_optional(&mut *tx).await?.ok_or_else(||AppError::NotFound("Order not found".into()))?;
+        if !matches!(order.status.as_str(),"PENDING"|"CANCELLED"){return Err(AppError::BadRequest("Only pending or cancelled orders may be deleted".into()));}
+        sqlx::query("INSERT INTO stock_release_jobs(order_id,checkout_id,farm_id) SELECT order_id,checkout_id,farm_id FROM order_stock_links WHERE order_id=$1 ON CONFLICT DO NOTHING").bind(id).execute(&mut *tx).await?;
+        sqlx::query("UPDATE orders SET is_deleted=true,status='CANCELLED' WHERE id=$1").bind(id).execute(&mut *tx).await?;
+        tx.commit().await?;
+        let _=crate::checkout::release_pending(self).await;
+        Ok(())
     }
 
     // ── Analytics ─────────────────────────────────────────────────────────────
@@ -358,7 +223,7 @@ impl OrderService {
 
 // ── Mapping helpers ───────────────────────────────────────────────────────────
 
-fn map_order_response(order: Order, items: Vec<OrderItem>) -> OrderResponse {
+pub(crate) fn map_order_response(order: Order, items: Vec<OrderItem>) -> OrderResponse {
     OrderResponse {
         id: order.id,
         farm_id: order.farm_id,
@@ -384,17 +249,4 @@ fn map_order_response(order: Order, items: Vec<OrderItem>) -> OrderResponse {
             })
             .collect(),
     }
-}
-
-/// Runs all futures concurrently and collects results,
-/// returning the first error if any validation fails.
-async fn futures_join_all<T>(
-    futures: Vec<impl std::future::Future<Output = anyhow::Result<T>>>,
-) -> AppResult<Vec<T>> {
-    let results = futures::future::join_all(futures).await;
-    let mut out = Vec::with_capacity(results.len());
-    for r in results {
-        out.push(r.map_err(|e| AppError::BadRequest(e.to_string()))?);
-    }
-    Ok(out)
 }

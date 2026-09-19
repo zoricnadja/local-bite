@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM process_steps WHERE id = $1 AND batch_id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "e1f9aec1234b7b96418f5023fb039cea791b1e6c2718582cd4d1629d27e1b289"
+}

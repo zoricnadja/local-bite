@@ -11,6 +11,8 @@ use std::sync::Arc;
 use tower_http::cors::CorsLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
+mod reservations;
+mod output_consumer;
 mod db;
 mod dtos;
 mod handlers;
@@ -37,11 +39,10 @@ async fn main() -> anyhow::Result<()> {
     tracing::info!("Uploads directory: {}", uploads_dir);
 
     let pool = create_pool().await?;
+    common::events::start_outbox(pool.clone(), "products");
+    output_consumer::start(pool.clone());
     let product_repository = Arc::new(ProductRepository::new(pool.clone()));
-    let product_service = Arc::new(ProductService::new(
-        product_repository.clone(),
-        uploads_dir.clone(),
-    ));
+    let product_service = Arc::new(ProductService::new(product_repository.clone()));
     let image_service = Arc::new(ImageService::new(
         product_repository.clone(),
         uploads_dir.clone(),
@@ -55,8 +56,11 @@ async fn main() -> anyhow::Result<()> {
 
     let app = Router::new()
         .route("/health", get(|| async { "ok" }))
+        .route("/internal/reservations/{id}", axum::routing::post(reservations::reserve))
+        .route("/internal/reservations/{id}/release/{farm}", axum::routing::post(reservations::release))
+        .layer(Extension(pool.clone()))
         .nest("/products", routes::product_routes())
-        .merge(routes::static_routes())
+
         .layer(CorsLayer::permissive())
         .layer(Extension(provenance_service))
         .layer(Extension(certificate_service))
@@ -64,7 +68,7 @@ async fn main() -> anyhow::Result<()> {
         .layer(Extension(image_service))
         .layer(Extension(qr_service));
 
-    let port = std::env::var("PORT").unwrap_or_else(|_| "3004".to_string());
+    let port = std::env::var("PORT").unwrap_or_else(|_| "3003".to_string());
     let addr = format!("0.0.0.0:{}", port);
     tracing::info!("Product service listening on {}", addr);
 

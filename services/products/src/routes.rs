@@ -1,11 +1,11 @@
-use axum::routing::patch;
+
 use axum::{
     routing::{get, post},
     Router,
 };
-use tower_http::services::ServeDir;
 
-use crate::handlers::products_handler::decrement_quantity;
+
+
 use crate::handlers::{image_handler, products_handler, public_handler, qr_handler};
 
 pub fn product_routes() -> Router {
@@ -38,12 +38,5 @@ pub fn product_routes() -> Router {
         // QR code
         .route("/{id}/qr", get(qr_handler::get_qr))
         .route("/{id}/qr/regenerate", post(qr_handler::regenerate_qr))
-        .route("/{id}/decrement", patch(decrement_quantity))
-}
 
-/// Static file serving for uploaded images and QR PNGs.
-/// Mounted at /uploads  → serves ./uploads directory.
-pub fn static_routes() -> Router {
-    let uploads_dir = std::env::var("UPLOADS_DIR").unwrap_or_else(|_| "./uploads".into());
-    Router::new().nest_service("/uploads", ServeDir::new(uploads_dir))
 }

@@ -6,6 +6,7 @@ use axum::{
 
 pub fn production_routes() -> Router {
     Router::new()
+        .route("/{id}/trace", get(batches::trace))
         // Batch collection
         .route("/", get(batches::list).post(batches::create))
         // Single batch

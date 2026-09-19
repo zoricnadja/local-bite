@@ -7,7 +7,7 @@ use jsonwebtoken::{encode, EncodingKey, Header};
 use std::sync::Arc;
 use uuid::Uuid;
 
-use crate::dtos::add_worker_request::AddWorkerRequest;
+
 use crate::dtos::create_farm_request::CreateFarmRequest;
 use crate::dtos::create_farm_response::CreateFarmResult;
 use crate::dtos::register_request::RegisterRequest;
@@ -52,7 +52,7 @@ impl FarmService {
                 "Only FARM_OWNER can create a farm".into(),
             ));
         }
-        if claims.farm_id.is_some() {
+        if self.farm_repository.find_by_owner(claims.sub).await?.is_some() {
             return Err(AppError::Conflict("You already have a farm".into()));
         }
 
@@ -73,9 +73,7 @@ impl FarmService {
         };
 
         self.farm_repository.insert_farm(&farm).await?;
-        self.user_repository
-            .set_farm_id(claims.sub, Some(farm_id))
-            .await?;
+
 
         // Issue a fresh JWT including the new farm_id
         let new_claims = Claims {
@@ -106,7 +104,7 @@ impl FarmService {
                 "Only FARM_OWNER can add workers".into(),
             ));
         }
-        if claims.farm_id != Some(farm_id) {
+        if self.farm_repository.find_by_id(farm_id).await?.map(|f| f.owner_id) != Some(claims.sub) {
             return Err(AppError::Forbidden(
                 "You can only add workers to your own farm".into(),
             ));
@@ -155,8 +153,9 @@ impl FarmService {
             .find_by_id(farm_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Farm not found".into()))?;
-        // Only allow accessing own farm for now (could be expanded to SYSTEM_ADMIN, etc.)
-        if claims.sub.ne(&farm.owner_id) {
+        let user = self.user_repository.find_by_id(claims.sub).await?
+            .ok_or_else(|| AppError::Unauthorized("Account not found".into()))?;
+        if user.id != farm.owner_id && !(user.role == Role::Worker && user.farm_id == Some(farm_id)) {
             return Err(AppError::Forbidden(
                 "You can only access your own farm".into(),
             ));
@@ -211,19 +210,12 @@ impl FarmService {
             .find_by_id(farm_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Farm not found".into()))?;
-        tracing::info!("Deleting farm {}", farm.id);
         if farm.owner_id != caller.sub {
             self.require_admin(caller)?;
-            tracing::info!("Removed farmdddddd {}", farm.id);
-        }
-        tracing::info!("Removed farm {}", farm.id);
-        self.user_repository
-            .set_farm_id(caller.sub, None)
-            .await
-            .ok(); // best-effort
+            }
+
         self.farm_repository.delete_farm(farm_id).await?;
         // Detach farm from owner
-        tracing::info!("Deleted farm {}", farm.id);
         Ok(())
     }
     pub async fn list_workers(
@@ -231,7 +223,7 @@ impl FarmService {
         claims: &Claims,
         farm_id: Uuid,
     ) -> Result<Vec<WorkerOut>, AppError> {
-        if claims.farm_id != Some(farm_id) {
+        if claims.role != "FARM_OWNER" || self.farm_repository.find_by_id(farm_id).await?.map(|f| f.owner_id) != Some(claims.sub) {
             return Err(AppError::Forbidden(
                 "You can only access your own farm".into(),
             ));
@@ -250,7 +242,7 @@ impl FarmService {
     }
 
     fn require_admin(&self, claims: &Claims) -> Result<(), AppError> {
-        if claims.role != "ADMIN" {
+        if claims.role != "SYSTEM_ADMIN" {
             return Err(AppError::Forbidden("Admin access required".into()));
         }
         Ok(())

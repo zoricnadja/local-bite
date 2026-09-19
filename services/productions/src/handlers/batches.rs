@@ -56,6 +56,18 @@ pub async fn get_one(
 
 // ── PUT /batches/:id ──────────────────────────────────────────────────────────
 
+pub async fn trace(
+    AuthClaims(claims): AuthClaims,
+    Path(id): Path<Uuid>,
+    Extension(service): Extension<Arc<BatchService>>,
+) -> AppResult<Response> {
+    require_role(&claims, &["TRACEABILITY"])?;
+    if claims.sub != id {
+        return Err(common::errors::AppError::Forbidden("Traceability scope mismatch".into()));
+    }
+    Ok(ok(service.get_one(id, require_farm(&claims)?).await?))
+}
+
 pub async fn update(
     AuthClaims(_claims): AuthClaims,
     Path(_id): Path<Uuid>,

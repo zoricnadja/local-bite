@@ -17,7 +17,8 @@ pub async fn me(
     Extension(_id): Extension<Uuid>,
 ) -> Result<impl IntoResponse, AppError> {
     let user = _auth_service.get_user(_id).await?;
-    Ok(Json(user))
+    let token = _auth_service.issue_token(user.id, &user.email, &user.role, user.farm_id)?;
+    Ok(([("x-session-token", token)], Json(user)))
 }
 
 #[debug_handler]
@@ -46,6 +47,9 @@ pub async fn delete_user(
     AuthClaims(_claims): AuthClaims,
     Path(_id): Path<Uuid>,
 ) -> Result<impl IntoResponse, AppError> {
+    if _claims.role == "WORKER" || (_claims.sub != _id && _claims.role != "SYSTEM_ADMIN") {
+        return Err(AppError::Forbidden("You cannot delete this account".into()));
+    }
     _user_service.delete_user(_id).await?;
     Ok(StatusCode::NO_CONTENT)
 }

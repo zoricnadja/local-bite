@@ -5,3 +5,4 @@ pub mod middleware;
 pub mod models;
 pub mod paginated_response;
 pub mod response;
+pub mod service_auth;

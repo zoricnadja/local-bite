@@ -4,7 +4,7 @@ use crate::models::batch_raw_material::BatchRawMaterial;
 use crate::models::insert_raw_material_params::InsertRawMaterialParams;
 use crate::repositories::batch_repository::BatchRepository;
 use crate::repositories::raw_materials_repository::RawMaterialsRepository;
-use crate::repositories::step_repository::StepRepository;
+
 use anyhow::{anyhow, Context};
 use bigdecimal::BigDecimal;
 use common::errors::{AppError, AppResult};
@@ -19,7 +19,6 @@ use uuid::Uuid;
 pub struct RawMaterialsService {
     batch_repository: Arc<BatchRepository>,
     raw_materials_repository: Arc<RawMaterialsRepository>,
-    step_repository: Arc<StepRepository>,
 }
 
 fn dec(v: f64) -> BigDecimal {
@@ -29,12 +28,11 @@ impl RawMaterialsService {
     pub fn new(
         batch_repository: Arc<BatchRepository>,
         raw_materials_repository: Arc<RawMaterialsRepository>,
-        step_repository: Arc<StepRepository>,
     ) -> Self {
         Self {
             batch_repository,
             raw_materials_repository,
-            step_repository,
+
         }
     }
 
@@ -56,7 +54,7 @@ impl RawMaterialsService {
                 batch.status
             )));
         }
-        if req.quantity_used <= 0.0 {
+        if !req.quantity_used.is_finite() || req.quantity_used < 0.001 {
             return Err(AppError::BadRequest("quantity_used must be > 0".into()));
         }
         if self
@@ -74,20 +72,54 @@ impl RawMaterialsService {
             .await
             .map_err(|e| AppError::BadRequest(e.to_string()))?;
 
-        self.raw_materials_repository
-            .insert(InsertRawMaterialParams {
-                id: Uuid::new_v4(),
-                batch_id,
-                farm_id,
-                raw_material_id: snap.id,
-                raw_material_name: snap.name,
-                material_type: snap.material_type,
-                quantity_used: dec(req.quantity_used),
-                unit: req.unit.trim().to_string(),
-                origin: snap.origin,
-                supplier: snap.supplier,
-            })
-            .await
+        if req.unit.trim() != snap.unit {
+            return Err(AppError::BadRequest(format!(
+                "Use {} for this material",
+                snap.unit
+            )));
+        }
+        let mut tx = self.raw_materials_repository.pool.begin().await?;
+        // Lock the batch while changing its materials and checking its status.
+        let status: String = sqlx::query_scalar("SELECT status FROM production_batches WHERE id=$1 AND farm_id=$2 AND NOT is_deleted FOR UPDATE")
+            .bind(batch_id).bind(farm_id).fetch_one(&mut *tx).await?;
+        if status == "COMPLETED" || status == "CANCELLED" {
+            return Err(AppError::BadRequest(
+                "This batch no longer accepts materials".into(),
+            ));
+        }
+        let operation_id = Uuid::new_v4();
+        crate::material_recovery::journal(&self.raw_materials_repository.pool, &mut tx, operation_id, farm_id).await?;
+        let material = self
+            .raw_materials_repository
+            .insert_in(
+                &mut tx,
+                InsertRawMaterialParams {
+                    id: operation_id,
+                    batch_id,
+                    farm_id,
+                    raw_material_id: snap.id,
+                    raw_material_name: snap.name,
+                    material_type: snap.material_type,
+                    quantity_used: dec(req.quantity_used),
+                    unit: req.unit.trim().to_string(),
+                    origin: snap.origin,
+                    supplier: snap.supplier,
+                    harvest_date: snap.harvest_date,
+                    received_date: snap.received_date,
+                    expiry_date: snap.expiry_date,
+                },
+            )
+            .await?;
+        let items = serde_json::json!([{ "operation_id": operation_id, "raw_material_id": req.raw_material_id, "quantity": req.quantity_used, "unit": req.unit.trim() }]);
+        if let Err(error) = self.consume(&items, token).await {
+            self.compensate(&[operation_id], token).await?;
+            return Err(error);
+        }
+        if let Err(error) = tx.commit().await {
+            self.compensate(&[operation_id], token).await?;
+            return Err(error.into());
+        }
+        Ok(material)
     }
 
     pub async fn remove(
@@ -118,6 +150,70 @@ impl RawMaterialsService {
             )));
         }
         Ok(())
+    }
+
+    pub async fn consume(&self, items: &serde_json::Value, token: &str) -> AppResult<()> {
+        self.stock_request("production-consumption", items, token)
+            .await
+    }
+
+    pub async fn compensate(&self, ids: &[Uuid], token: &str) -> AppResult<()> {
+        self.stock_request(
+            "production-consumption/release",
+            &serde_json::json!(ids),
+            token,
+        )
+        .await
+    }
+
+    async fn stock_request(
+        &self,
+        endpoint: &str,
+        body: &serde_json::Value,
+        token: &str,
+    ) -> AppResult<()> {
+        let base = std::env::var("RAW_MATERIALS_SERVICE_URL")
+            .unwrap_or_else(|_| "http://raw-materials-service:3002".into());
+        let secret=std::env::var("JWT_SECRET").map_err(|e|AppError::Internal(e.into()))?;
+        let claims=common::jwt::decode_jwt(token,&secret)?.claims;
+        let internal=common::service_auth::token("MATERIAL_STOCK",Uuid::nil(),claims.farm_id)?;
+        let client = reqwest::Client::new();
+        for attempt in 0..3 {
+            let result = client
+                .post(format!(
+                    "{}/internal/{}",
+                    base.trim_end_matches('/'),
+                    endpoint
+                ))
+                .bearer_auth(&internal)
+                .json(body)
+                .timeout(std::time::Duration::from_secs(10))
+                .send()
+                .await;
+            match result {
+                Ok(response) if response.status().is_success() => return Ok(()),
+                Ok(response) if response.status().is_client_error() => {
+                    let message = response
+                        .json::<serde_json::Value>()
+                        .await
+                        .unwrap_or_default();
+                    return Err(AppError::BadRequest(
+                        message
+                            .get("error")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("Unable to update material stock")
+                            .into(),
+                    ));
+                }
+                _ if attempt < 2 => continue,
+                _ => {
+                    return Err(AppError::Internal(anyhow!(
+                        "Material stock service unavailable; stock reconciliation may be needed"
+                    )))
+                }
+            }
+        }
+        unreachable!()
     }
 
     pub async fn fetch_raw_material(

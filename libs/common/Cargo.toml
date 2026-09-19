@@ -17,3 +17,4 @@ serde = { workspace = true }
 argon2 = { workspace = true }
 reqwest = { workspace = true }
 tokio = { workspace = true }
+lapin = "=2.5.5"

@@ -12,6 +12,11 @@ pub struct ProductionBatchResponse {
     pub process_type: String,
     pub start_date: Option<String>, // ISO string for easy JSON
     pub end_date: Option<String>,
+    pub output_name: Option<String>,
+    pub output_type: Option<String>,
+    pub output_unit: Option<String>,
+    pub output_quantity: Option<f64>,
+    pub output_expiry_date: Option<chrono::NaiveDate>,
     pub status: String,
     pub notes: Option<String>,
     pub steps: Vec<ProcessStepResponse>,

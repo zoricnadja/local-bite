@@ -1,0 +1,123 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT id, farm_id, name, product_type, description, quantity, unit, price,\n                   expiry_date, batch_id, image_path, qr_token, qr_path, is_active, is_deleted,\n                   created_at, updated_at\n            FROM   products\n            WHERE  farm_id    = $1\n              AND  is_deleted = FALSE\n              AND  ($2 = '' OR product_type ILIKE $2)\n              AND  ($3 = '' OR name ILIKE '%' || $3 || '%')\n              AND  (NOT $4    OR is_active = TRUE)\n            ORDER  BY created_at DESC\n            LIMIT  $5 OFFSET $6\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "farm_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "product_type",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "description",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "quantity",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 6,
+        "name": "unit",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 7,
+        "name": "price",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 8,
+        "name": "expiry_date",
+        "type_info": "Date"
+      },
+      {
+        "ordinal": 9,
+        "name": "batch_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 10,
+        "name": "image_path",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 11,
+        "name": "qr_token",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 12,
+        "name": "qr_path",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 13,
+        "name": "is_active",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 14,
+        "name": "is_deleted",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 15,
+        "name": "created_at",
+        "type_info": "Timestamp"
+      },
+      {
+        "ordinal": 16,
+        "name": "updated_at",
+        "type_info": "Timestamp"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Text",
+        "Bool",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "1253135c7e2405c51b05f4b2498d4184e98dc865c24e71e9ee9c888366b55cfd"
+}

@@ -9,6 +9,7 @@ pub struct UpdateProductRequest {
     pub quantity: Option<f64>,
     pub unit: Option<String>,
     pub price: Option<f64>,
+    pub expiry_date: Option<chrono::NaiveDate>,
     pub batch_id: Option<Uuid>,
     pub is_active: Option<bool>,
 }

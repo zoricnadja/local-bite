@@ -9,5 +9,6 @@ pub struct CreateProductRequest {
     pub quantity: f64,
     pub unit: String,
     pub price: f64,
+    pub expiry_date: Option<chrono::NaiveDate>,
     pub batch_id: Option<Uuid>,
 }

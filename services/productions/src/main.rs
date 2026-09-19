@@ -9,6 +9,7 @@ use std::sync::Arc;
 use tower_http::cors::CorsLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
+mod material_recovery;
 mod db;
 mod dtos;
 mod handlers;
@@ -30,14 +31,12 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     let pool = db::create_pool().await?;
+    material_recovery::start(pool.clone());
+    common::events::start_outbox(pool.clone(), "productions");
     let raw_materials_repository = Arc::new(RawMaterialsRepository::new(pool.clone()));
     let step_repository = Arc::new(StepRepository::new(pool.clone()));
     let batch_repository = Arc::new(BatchRepository::new(pool.clone()));
-    let raw_materials_service = Arc::new(RawMaterialsService::new(
-        batch_repository.clone(),
-        raw_materials_repository.clone(),
-        step_repository.clone(),
-    ));
+    let raw_materials_service = Arc::new(RawMaterialsService::new(batch_repository.clone(), raw_materials_repository.clone()));
     let batch_service = Arc::new(BatchService::new(
         batch_repository.clone(),
         step_repository.clone(),

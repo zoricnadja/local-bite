@@ -9,7 +9,7 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::dtos::create_product_request::CreateProductRequest;
-use crate::dtos::decrement_request::DecrementRequest;
+
 use crate::dtos::update_product_request::UpdateProductRequest;
 use crate::models::query::ListQuery;
 use crate::services::product_service::ProductService;
@@ -24,7 +24,7 @@ use common::{
 #[debug_handler]
 pub async fn list_by_farm(
     AuthClaims(_claims): AuthClaims,
-    Query(_q): Query<ListQuery>,
+    Query(mut _q): Query<ListQuery>,
     Extension(_product_service): Extension<Arc<ProductService>>,
 ) -> AppResult<Response> {
     require_role(
@@ -42,11 +42,12 @@ pub async fn list_by_farm(
 #[debug_handler]
 pub async fn list(
     AuthClaims(_claims): AuthClaims,
-    Query(_q): Query<ListQuery>,
+    Query(mut _q): Query<ListQuery>,
     Extension(_product_service): Extension<Arc<ProductService>>,
 ) -> AppResult<Response> {
     require_role(&_claims, &["SYSTEM_ADMIN", "CUSTOMER"])?;
 
+    if _claims.role == "CUSTOMER" { _q.is_active=Some(true); }
     let result = _product_service.find_all(&_q).await?;
     Ok(ok(result))
 }
@@ -61,7 +62,7 @@ pub async fn create(
 ) -> AppResult<Response> {
     require_role(
         &_claims,
-        &["FARM_OWNER", "WORKER", "SYSTEM_ADMIN", "CUSTOMER"],
+        &["FARM_OWNER", "WORKER"],
     )?;
     let farm_id = require_farm(&_claims)?;
 
@@ -83,6 +84,7 @@ pub async fn get_one(
     )?;
 
     let product = _product_service.get_one(_id).await?;
+    crate::services::product_service::authorize_read(&product, &_claims)?;
     Ok(ok(product))
 }
 
@@ -93,13 +95,16 @@ pub async fn provenance(
     AuthClaims(_claims): AuthClaims,
     Path(_id): Path<Uuid>,
     _headers: HeaderMap,
+    Extension(product_service): Extension<Arc<ProductService>>,
     Extension(_provenance_service): Extension<Arc<ProvenanceService>>,
 ) -> AppResult<Response> {
     require_role(
         &_claims,
         &["FARM_OWNER", "WORKER", "CUSTOMER", "SYSTEM_ADMIN"],
     )?;
-    let farm_id = require_farm(&_claims)?;
+    let product = product_service.get_one(_id).await?;
+    crate::services::product_service::authorize_read(&product, &_claims)?;
+    let farm_id = product.farm_id;
 
     let token = _headers
         .get("authorization")
@@ -124,7 +129,7 @@ pub async fn update(
 ) -> AppResult<Response> {
     require_role(
         &_claims,
-        &["FARM_OWNER", "WORKER", "SYSTEM_ADMIN", "CUSTOMER"],
+        &["FARM_OWNER", "WORKER"],
     )?;
     let farm_id = require_farm(&_claims)?;
 
@@ -145,15 +150,4 @@ pub async fn delete(
 
     _product_service.delete(_id, farm_id).await?;
     Ok(no_content())
-}
-
-#[debug_handler]
-pub async fn decrement_quantity(
-    Extension(product_service): Extension<Arc<ProductService>>,
-    AuthClaims(claims): AuthClaims,
-    Path(product_id): Path<Uuid>,
-    Json(req): Json<DecrementRequest>,
-) -> AppResult<Response> {
-    let updated = product_service.decrement(product_id, req.quantity).await?;
-    Ok(ok(updated))
 }

@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT COUNT(*) FROM products\n            WHERE  ($1 = '' OR product_type ILIKE $1)\n              AND  ($2 = '' OR name ILIKE '%' || $2 || '%')\n              AND  (NOT $3    OR is_active = TRUE)\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Bool"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "446a6945a24805f29d5c30316850578c0f5fa2c485757db33b9f737e817f2f06"
+}

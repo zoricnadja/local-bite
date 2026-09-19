@@ -16,16 +16,7 @@ impl RawMaterialsRepository {
     }
 
     pub async fn find_by_batch(&self, batch_id: Uuid) -> AppResult<Vec<BatchRawMaterial>> {
-        Ok(sqlx::query_as!(
-            BatchRawMaterial,
-            r#"
-            SELECT id, batch_id, farm_id, raw_material_id, raw_material_name,
-                   material_type, quantity_used, unit, origin, supplier
-            FROM   batch_raw_materials
-            WHERE  batch_id = $1
-            "#,
-            batch_id
-        )
+        Ok(sqlx::query_as::<_, BatchRawMaterial>("SELECT * FROM batch_raw_materials WHERE batch_id=$1").bind(batch_id)
         .fetch_all(&self.pool)
         .await?)
     }
@@ -40,31 +31,16 @@ impl RawMaterialsRepository {
             .unwrap_or(false))
     }
 
-    pub async fn insert(&self, p: InsertRawMaterialParams) -> AppResult<BatchRawMaterial> {
-        Ok(sqlx::query_as!(
-            BatchRawMaterial,
-            r#"
-            INSERT INTO batch_raw_materials
-                (id, batch_id, farm_id, raw_material_id, raw_material_name,
-                 material_type, quantity_used, unit, origin, supplier)
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
-            ON CONFLICT (batch_id, raw_material_id) DO NOTHING
-            RETURNING id, batch_id, farm_id, raw_material_id, raw_material_name,
-                      material_type, quantity_used, unit, origin, supplier
-            "#,
-            p.id,
-            p.batch_id,
-            p.farm_id,
-            p.raw_material_id,
-            p.raw_material_name,
-            p.material_type,
-            p.quantity_used,
-            p.unit,
-            p.origin.as_deref(),
-            p.supplier.as_deref()
-        )
-        .fetch_one(&self.pool)
-        .await?)
+    pub async fn insert_in(
+        &self,
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+        p: InsertRawMaterialParams,
+    ) -> AppResult<BatchRawMaterial> {
+        Ok(sqlx::query_as::<_, BatchRawMaterial>(
+            "INSERT INTO batch_raw_materials (id,batch_id,farm_id,raw_material_id,raw_material_name,material_type,quantity_used,unit,origin,supplier,received_date,expiry_date,harvest_date) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *")
+            .bind(p.id).bind(p.batch_id).bind(p.farm_id).bind(p.raw_material_id)
+            .bind(p.raw_material_name).bind(p.material_type).bind(p.quantity_used)
+            .bind(p.unit).bind(p.origin).bind(p.supplier).bind(p.received_date).bind(p.expiry_date).bind(p.harvest_date).fetch_one(&mut **tx).await?)
     }
 
     pub async fn delete(

@@ -1,7 +1,7 @@
 use crate::models::farms::Farm;
-use chrono::Utc;
+
 use common::errors::AppError;
-use sqlx::{PgPool, Postgres, Transaction};
+use sqlx::PgPool;
 use uuid::Uuid;
 
 // Workers listing record (lightweight projection)
@@ -23,32 +23,14 @@ impl FarmRepository {
     }
 
     pub async fn insert_farm(&self, f: &Farm) -> Result<(), AppError> {
-        sqlx::query!(
-            r#"
-            INSERT INTO farms
-                (id, name, owner_id,
-                 address,
-                 phone, description, website,
-                 created_at, updated_at)
-            VALUES
-                ($1, $2, $3,
-                 $4, $5,
-                 $6, $7, $8,
-                 $9)
-            "#,
-            f.id,
-            f.name,
-            f.owner_id,
-            f.address,
-            f.phone,
-            f.description,
-            f.website,
-            f.created_at,
-            f.updated_at,
-        )
-        .execute(&self.pool)
-        .await?;
-        Ok(())
+        let mut tx=self.pool.begin().await?;
+        sqlx::query("SELECT id FROM users WHERE id=$1 FOR UPDATE").bind(f.owner_id).fetch_one(&mut *tx).await?;
+        let exists:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM farms WHERE owner_id=$1)").bind(f.owner_id).fetch_one(&mut *tx).await?;
+        if exists { return Err(AppError::Conflict("You already have a farm".into())); }
+        sqlx::query("INSERT INTO farms(id,name,owner_id,address,phone,description,website,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)")
+            .bind(f.id).bind(&f.name).bind(f.owner_id).bind(&f.address).bind(&f.phone).bind(&f.description).bind(&f.website).bind(f.created_at).bind(f.updated_at).execute(&mut *tx).await?;
+        sqlx::query("UPDATE users SET farm_id=$1 WHERE id=$2").bind(f.id).bind(f.owner_id).execute(&mut *tx).await?;
+        tx.commit().await?; Ok(())
     }
 
     pub async fn email_exists(&self, email: &str) -> Result<bool, AppError> {
@@ -113,9 +95,10 @@ impl FarmRepository {
     // ── Delete ────────────────────────────────────────────────────────────────
 
     pub async fn delete_farm(&self, id: Uuid) -> Result<(), AppError> {
-        sqlx::query!("DELETE FROM farms WHERE id = $1", id)
-            .execute(&self.pool)
-            .await?;
+        let mut tx=self.pool.begin().await?;
+        sqlx::query("UPDATE users SET farm_id=NULL WHERE farm_id=$1").bind(id).execute(&mut *tx).await?;
+        sqlx::query("DELETE FROM farms WHERE id=$1").bind(id).execute(&mut *tx).await?;
+        tx.commit().await?;
         Ok(())
     }
 

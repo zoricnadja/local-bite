@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT COALESCE(SUM(total_price), 0)\n            FROM   orders\n            WHERE  farm_id    = $1\n              AND  is_deleted = FALSE\n              AND  status     = 'DELIVERED'\n              AND  ($2 = '' OR created_at::date >= $2::date)\n              AND  ($3 = '' OR created_at::date <= $3::date)\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "coalesce",
+        "type_info": "Numeric"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "264c67c2809b89870aa7bc46dffb7c0eafb0286750dc8758c419e1ac2cd82f27"
+}

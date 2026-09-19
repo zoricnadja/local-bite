@@ -14,6 +14,6 @@ impl ListQuery {
         (self.page.unwrap_or(1).max(1) - 1) * self.limit()
     }
     pub fn limit(&self) -> i64 {
-        self.limit.unwrap_or(20).min(100)
+        self.limit.unwrap_or(20).clamp(1, 100)
     }
 }

@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO farms\n                (id, name, owner_id,\n                 address,\n                 phone, description, website,\n                 created_at, updated_at)\n            VALUES\n                ($1, $2, $3,\n                 $4, $5,\n                 $6, $7, $8,\n                 $9)\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Uuid",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "49798778134d213161e27c9e0e3bce18ca34e4d45f4419b031a31b10876b165d"
+}

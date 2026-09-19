@@ -71,37 +71,13 @@ impl OrderRepository {
         _id: Uuid,
         q: &ListOrdersQuery,
     ) -> AppResult<Vec<Order>> {
-        let offset = q.offset();
-        let limit = q.limit();
-        let status_f = q.status.as_deref().unwrap_or("");
-        let search_f = q.search.as_deref().unwrap_or("");
-
-        let items = sqlx::query_as!(
-            Order,
-            r#"
-            SELECT id, farm_id, customer_id, customer_name, customer_email,
-                   status, total_price, notes, is_deleted, created_at, updated_at
-            FROM   orders
-            WHERE  customer_id    = $1
-              AND  is_deleted = FALSE
-              AND  ($2 = '' OR status ILIKE $2)
-              AND  ($3 = '' OR customer_name  ILIKE '%' || $3 || '%'
-                            OR customer_email ILIKE '%' || $3 || '%')
-            ORDER  BY created_at DESC
-            LIMIT  $4 OFFSET $5
-            "#,
-            _id,
-            status_f,
-            search_f,
-            limit,
-            offset
-        )
-        .fetch_all(&self.pool)
-        .await?;
-
-        Ok(items)
+        Ok(sqlx::query_as::<_,Order>("SELECT * FROM orders WHERE customer_id=$1 AND NOT is_deleted AND ($2::uuid IS NULL OR farm_id=$2) AND ($3='' OR status ILIKE $3) AND ($4='' OR customer_name ILIKE '%'||$4||'%' OR customer_email ILIKE '%'||$4||'%') ORDER BY created_at DESC,id LIMIT $5 OFFSET $6")
+            .bind(_id).bind(q.farm_id).bind(q.status.as_deref().unwrap_or("")).bind(q.search.as_deref().unwrap_or("")).bind(q.limit()).bind(q.offset()).fetch_all(&self.pool).await?)
     }
-
+    pub async fn count_by_user(&self,id:Uuid,q:&ListOrdersQuery)->AppResult<i64> {
+        Ok(sqlx::query_scalar("SELECT count(*) FROM orders WHERE customer_id=$1 AND NOT is_deleted AND ($2::uuid IS NULL OR farm_id=$2) AND ($3='' OR status ILIKE $3) AND ($4='' OR customer_name ILIKE '%'||$4||'%' OR customer_email ILIKE '%'||$4||'%')")
+            .bind(id).bind(q.farm_id).bind(q.status.as_deref().unwrap_or("")).bind(q.search.as_deref().unwrap_or("")).fetch_one(&self.pool).await?)
+    }
     pub async fn count(&self, farm_id: Uuid, q: &ListOrdersQuery) -> AppResult<i64> {
         let status_f = q.status.as_deref().unwrap_or("");
         let search_f = q.search.as_deref().unwrap_or("");
@@ -161,45 +137,9 @@ impl OrderRepository {
         Ok(order)
     }
 
-    pub async fn update_status(
-        &self,
-        id: Uuid,
-        farm_id: Uuid,
-        new_status: &str,
-    ) -> AppResult<Order> {
-        let updated = sqlx::query_as!(
-            Order,
-            r#"
-            UPDATE orders SET status = $1
-            WHERE  id = $2 AND farm_id = $3 AND is_deleted = FALSE
-            RETURNING id, farm_id, customer_id, customer_name, customer_email,
-                      status, total_price, notes, is_deleted, created_at, updated_at
-            "#,
-            new_status,
-            id,
-            farm_id
-        )
-        .fetch_optional(&self.pool)
-        .await?
-        .ok_or_else(|| AppError::NotFound(format!("Order {} not found", id)))?;
 
-        Ok(updated)
-    }
 
-    pub async fn soft_delete(&self, id: Uuid, farm_id: Uuid) -> AppResult<()> {
-        let rows = sqlx::query!(
-            "UPDATE orders SET is_deleted = TRUE WHERE id = $1 AND farm_id = $2 AND is_deleted = FALSE",
-            id, farm_id
-        )
-        .execute(&self.pool)
-        .await?
-        .rows_affected();
 
-        if rows == 0 {
-            return Err(AppError::NotFound(format!("Order {} not found", id)));
-        }
-        Ok(())
-    }
 
     // ── Analytics ─────────────────────────────────────────────────────────────
 

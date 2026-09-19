@@ -11,10 +11,10 @@ pub struct ListQuery {
 impl ListQuery {
     pub fn offset(&self) -> i64 {
         let page = self.page.unwrap_or(1).max(1);
-        let limit = self.limit.unwrap_or(20).min(100);
+        let limit = self.limit.unwrap_or(20).clamp(1, 100);
         (page - 1) * limit
     }
     pub fn limit(&self) -> i64 {
-        self.limit.unwrap_or(20).min(100)
+        self.limit.unwrap_or(20).clamp(1, 100)
     }
 }

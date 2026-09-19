@@ -13,5 +13,8 @@ pub struct BatchRawMaterial {
     pub quantity_used: BigDecimal,
     pub unit: String,
     pub origin: Option<String>,
+    pub harvest_date: Option<chrono::NaiveDate>,
+    pub received_date: Option<chrono::NaiveDate>,
+    pub expiry_date: Option<chrono::NaiveDate>,
     pub supplier: Option<String>,
 }

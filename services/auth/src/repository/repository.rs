@@ -1,6 +1,6 @@
 use crate::models::user::{User, UserRow};
 use common::errors::AppError;
-use sqlx::{PgPool, Postgres, Transaction};
+use sqlx::PgPool;
 use uuid::Uuid;
 
 #[derive(Clone)]
@@ -111,24 +111,4 @@ impl UserRepository {
         Ok(())
     }
 
-    pub async fn set_farm_id(&self, user_id: Uuid, farm_id: Option<Uuid>) -> Result<(), AppError> {
-        sqlx::query!(
-            r#"UPDATE users SET farm_id = $1 WHERE id = $2"#,
-            farm_id,
-            user_id
-        )
-        .execute(&self.pool)
-        .await?;
-        Ok(())
-    }
-
-    pub async fn clear_farm_id(&self, user_id: Uuid) -> Result<(), AppError> {
-        sqlx::query!(
-            "UPDATE users SET farm_id = NULL, updated_at = now() WHERE id = $1",
-            user_id
-        )
-        .execute(&self.pool)
-        .await?;
-        Ok(())
-    }
 }

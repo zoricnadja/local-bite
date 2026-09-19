@@ -30,7 +30,7 @@ impl RawMaterialRepository {
             RawMaterial,
             r#"
             SELECT id, farm_id, name, material_type, quantity, unit,
-                   supplier, origin, harvest_date, expiry_date, notes,
+                   supplier, origin, received_date, harvest_date, expiry_date, notes,
                    low_stock_threshold, is_deleted, created_at, updated_at
             FROM   raw_materials
             WHERE  farm_id    = $1
@@ -72,7 +72,7 @@ impl RawMaterialRepository {
             RawMaterial,
             r#"
             SELECT id, farm_id, name, material_type, quantity, unit,
-                   supplier, origin, harvest_date, expiry_date, notes,
+                   supplier, origin, received_date, harvest_date, expiry_date, notes,
                    low_stock_threshold, is_deleted, created_at, updated_at
             FROM   raw_materials
             WHERE  id = $1 AND farm_id = $2 AND is_deleted = FALSE
@@ -95,6 +95,7 @@ impl RawMaterialRepository {
         unit: &str,
         supplier: Option<&str>,
         origin: Option<&str>,
+        received_date: Option<chrono::NaiveDate>,
         harvest_date: Option<chrono::NaiveDate>,
         expiry_date: Option<chrono::NaiveDate>,
         notes: Option<&str>,
@@ -105,10 +106,10 @@ impl RawMaterialRepository {
             r#"
             INSERT INTO raw_materials
                 (id, farm_id, name, material_type, quantity, unit,
-                 supplier, origin, harvest_date, expiry_date, notes, low_stock_threshold)
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+                 supplier, origin, received_date, harvest_date, expiry_date, notes, low_stock_threshold)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$13,$9,$10,$11,$12)
             RETURNING id, farm_id, name, material_type, quantity, unit,
-                      supplier, origin, harvest_date, expiry_date, notes,
+                      supplier, origin, received_date, harvest_date, expiry_date, notes,
                       low_stock_threshold, is_deleted, created_at, updated_at
             "#,
             id,
@@ -123,6 +124,7 @@ impl RawMaterialRepository {
             expiry_date,
             notes,
             low_stock_threshold,
+            received_date,
         )
         .fetch_one(&self.pool)
         .await?;
@@ -140,6 +142,7 @@ impl RawMaterialRepository {
         unit: &str,
         supplier: Option<&str>,
         origin: Option<&str>,
+        received_date: Option<chrono::NaiveDate>,
         harvest_date: Option<chrono::NaiveDate>,
         expiry_date: Option<chrono::NaiveDate>,
         notes: Option<&str>,
@@ -158,10 +161,11 @@ impl RawMaterialRepository {
                 harvest_date        = $7,
                 expiry_date         = $8,
                 notes               = $9,
-                low_stock_threshold = $10
+                low_stock_threshold = $10,
+                received_date = $13
             WHERE id = $11 AND farm_id = $12 AND is_deleted = FALSE
             RETURNING id, farm_id, name, material_type, quantity, unit,
-                      supplier, origin, harvest_date, expiry_date, notes,
+                      supplier, origin, received_date, harvest_date, expiry_date, notes,
                       low_stock_threshold, is_deleted, created_at, updated_at
             "#,
             name,
@@ -175,7 +179,8 @@ impl RawMaterialRepository {
             notes,
             low_stock_threshold,
             id,
-            farm_id
+            farm_id,
+            received_date
         )
         .fetch_one(&self.pool)
         .await?;
@@ -200,7 +205,7 @@ impl RawMaterialRepository {
             RawMaterial,
             r#"
             SELECT id, farm_id, name, material_type, quantity, unit,
-                   supplier, origin, harvest_date, expiry_date, notes,
+                   supplier, origin, received_date, harvest_date, expiry_date, notes,
                    low_stock_threshold, is_deleted, created_at, updated_at
             FROM   raw_materials
             WHERE  farm_id             = $1
@@ -233,7 +238,7 @@ impl RawMaterialRepository {
               AND  is_deleted = FALSE
               AND  (quantity + $1) >= 0
             RETURNING id, farm_id, name, material_type, quantity, unit,
-                      supplier, origin, harvest_date, expiry_date, notes,
+                      supplier, origin, received_date, harvest_date, expiry_date, notes,
                       low_stock_threshold, is_deleted, created_at, updated_at
             "#,
             delta,

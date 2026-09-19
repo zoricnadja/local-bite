@@ -1,5 +1,7 @@
 # Local Bite – Mikroservisna platforma za praćenje proizvodnje i porekla domaćih proizvoda
 
+> Detaljna specifikacija trenutne implementacije: [docs/specifikacija/README.md](docs/specifikacija/README.md). Obuhvata tehnologije, svih šest servisa, arhitekturu, modele, API-je, tokove, frontend, obrasce, testiranje i poznata ograničenja. Tekst ispod predstavlja početni opis projekta i nije u svim delovima usklađen sa aktuelnim kodom.
+
 ## Tip teme
 
 **Samostalno definisana tema** sa jasnim osloncem na mikroservisnu arhitekturu. Tema je pogodna i kao **predefinisana mikroservisna**, ali se prijavljuje kao samostalno definisana kako bi se ostavio prostor za proširenja i diplomski rad.
@@ -162,13 +164,15 @@ Omogućava podršku za više gazdinstava i povezivanje sa Product Service-om.
 
 ## 8. Dodatno za diplomski rad
 
-U okviru diplomskog rada sistem će biti proširen keim od sledećih funkcionalnosti:
+U okviru diplomskog rada sistem će biti proširen sledećim funkcionalnostima:
 
-* Design patterni i arhitektura - Strategy, Factory, Builder – fleksibilnost i generalizacija proizvoda i procesa, Observer / Event pattern – event-driven komunikacija između servisa, CQRS – razdvajanje upisa i čitanja podataka za skalabilnost
+* [x] Design patterni i arhitektura - `Strategy` i `Factory` biraju validaciju proizvoda, dok `Builder` konstruiše PDF sertifikat. Događaj `product.created` primenjuje Observer/Event obrazac.
 * AI modul (Python) za predikciju potražnje i optimizaciju proizvodnje,
-* Asinhrona komunikacija između servisa (message broker),
-* Mobilna aplikacija za skeniranje QR koda,
-* Generisanje PDF sertifikata o poreklu
+* [x] Asinhrona komunikacija između servisa - RabbitMQ topic exchange `local_bite.events`; Product Service šalje trajni `product.created` događaj bez blokiranja CRUD zahteva.
+* [x] Mobilni javni prikaz za skeniranje QR koda (`/trace/:qrToken`), responzivan za telefon i dostupan bez prijave.
+* [x] Generisanje PDF sertifikata o poreklu (`GET /products/public/:qrToken/certificate.pdf`).
+
+Za pokretanje: `docker compose up --build` pokreće i RabbitMQ. Upravljački interfejs je na `http://localhost:15672` (korisnik i lozinka su u `.env`). QR kod koristi `PUBLIC_TRACE_URL/trace/:qrToken`; za Docker okruženje podrazumevana vrednost je `http://localhost/trace`.
 
 ---
 ### 9. Zaključak

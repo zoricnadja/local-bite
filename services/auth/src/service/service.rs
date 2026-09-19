@@ -27,6 +27,9 @@ impl AuthService {
     }
 
     pub async fn register_user(&self, payload: RegisterRequest) -> Result<String, AppError> {
+        if !matches!(payload.role.as_deref().unwrap_or("CUSTOMER"), "CUSTOMER" | "FARM_OWNER") {
+            return Err(AppError::Forbidden("Only customer and farm owner self-registration is allowed".into()));
+        }
         if self
             .user_repo
             .find_by_email(&payload.email)
@@ -68,7 +71,7 @@ impl AuthService {
         self.issue_token(id, &payload.email, &role, None)
     }
 
-    fn issue_token(
+    pub fn issue_token(
         &self,
         id: Uuid,
         email: &str,

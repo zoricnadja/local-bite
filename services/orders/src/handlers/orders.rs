@@ -44,7 +44,8 @@ pub async fn get_orders_by_user(
 ) -> AppResult<Response> {
     require_role(&_claims, &["CUSTOMER"])?;
 
-    let result = _order_service.find_all_by_user_id(_id, &_q).await?;
+    if _id != _claims.sub { return Err(common::errors::AppError::Forbidden("Only your own orders are available".into())); }
+    let result = _order_service.find_all_by_user_id(_claims.sub, &_q).await?;
 
     Ok(ok(result))
 }
@@ -56,13 +57,21 @@ pub async fn create(
     AuthClaims(_claims): AuthClaims,
     _headers: HeaderMap,
     Extension(_order_service): Extension<Arc<OrderService>>,
-    Json(_req): Json<CreateOrderRequest>,
+    Json(mut _req): Json<CreateOrderRequest>,
 ) -> AppResult<Response> {
-    require_role(&_claims, &["FARM_OWNER", "WORKER", "CUSTOMER"])?;
+    require_role(&_claims, &["CUSTOMER"])?;
     let token = extract_token(&_headers);
+    let key = _headers.get("idempotency-key").and_then(|v|v.to_str().ok()).and_then(|v|v.parse::<Uuid>().ok())
+        .ok_or_else(||common::errors::AppError::BadRequest("A UUID Idempotency-Key header is required".into()))?;
+    _req.customer_id=Some(_claims.sub);
 
+    let base=std::env::var("AUTH_SERVICE_URL").unwrap_or_else(|_| "http://auth-service:3001".into());
+    let profile:serde_json::Value=reqwest::Client::new().get(format!("{}/me",base)).bearer_auth(&token).timeout(std::time::Duration::from_secs(5)).send().await.map_err(|e| common::errors::AppError::Internal(e.into()))?.error_for_status().map_err(|e| common::errors::AppError::Internal(e.into()))?.json().await.map_err(|e| common::errors::AppError::Internal(e.into()))?;
+    _req.customer_name=Some(format!("{} {}",profile["first_name"].as_str().unwrap_or(""),profile["last_name"].as_str().unwrap_or("")).trim().to_owned());
+    let email=profile["email"].as_str().ok_or_else(|| common::errors::AppError::BadRequest("Account email unavailable".into()))?;
+    _req.customer_email=Some(email.to_owned());
     let result = _order_service
-        .create_order(_claims.sub, &*_claims.email, _req, &token)
+        .create_order(_claims.sub, email, _req, &token, key)
         .await?;
 
     Ok(created(result))
@@ -81,7 +90,7 @@ pub async fn get_one(
         &["FARM_OWNER", "WORKER", "CUSTOMER", "SYSTEM_ADMIN"],
     )?;
 
-    let result = _order_service.get_order(_id).await?;
+    let result = _order_service.get_order(_id, &_claims).await?;
 
     Ok(ok(result))
 }

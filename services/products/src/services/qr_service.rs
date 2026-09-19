@@ -23,17 +23,14 @@ impl QrService {
     /// Returns the filesystem path to the QR PNG, generating it on-demand if missing.
     pub async fn get_qr_path(&self, id: Uuid) -> AppResult<std::path::PathBuf> {
         let product = self.product_repository.find_by_id(id).await?;
-        let relative = match &product.qr_path {
-            Some(p) => p.clone(),
-            None => {
-                let new_path = qr_utils::generate_qr(product.qr_token, &self.uploads_dir)
-                    .map_err(AppError::Internal)?;
-                self.product_repository
-                    .set_qr_path(product.id, &new_path)
-                    .await?;
-                new_path
-            }
-        };
+        // Refresh cached images too: existing files may encode an obsolete host or port.
+        let relative = qr_utils::generate_qr(product.qr_token, &self.uploads_dir)
+            .map_err(AppError::Internal)?;
+        if product.qr_path.as_deref() != Some(relative.as_str()) {
+            self.product_repository
+                .set_qr_path(product.id, &relative)
+                .await?;
+        }
 
         Ok(qr_utils::media_path(&relative, &self.uploads_dir))
     }

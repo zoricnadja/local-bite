@@ -68,9 +68,13 @@ pub async fn upload_image(
 
 #[debug_handler]
 pub async fn get_image(
+    AuthClaims(claims): AuthClaims,
+    Extension(products): Extension<Arc<crate::services::product_service::ProductService>>,
     Path(_id): Path<Uuid>,
     Extension(_image_service): Extension<Arc<ImageService>>,
 ) -> AppResult<Response> {
+    let product = products.get_one(_id).await?;
+    crate::services::product_service::authorize_read(&product,&claims)?;
     let path = _image_service.get_image_path(_id).await?;
     serve_file(path.as_ref()).await
 }

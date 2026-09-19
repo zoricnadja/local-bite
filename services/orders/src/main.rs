@@ -6,6 +6,7 @@ use std::sync::Arc;
 use tower_http::cors::CorsLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
+mod checkout;
 mod db;
 mod dtos;
 mod handlers;
@@ -26,6 +27,7 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     let pool = db::create_pool().await?;
+    common::events::start_outbox(pool.clone(), "orders");
     let order_repository = Arc::new(OrderRepository::new(pool.clone()));
     let order_item_repository = Arc::new(OrderItemRepository::new(pool.clone()));
     let order_service = Arc::new(OrderService::new(
@@ -33,6 +35,7 @@ async fn main() -> anyhow::Result<()> {
         order_item_repository.clone(),
     ));
 
+    checkout::start(order_service.clone());
     let app = Router::new()
         .route("/health", get(|| async { "ok" }))
         .nest("/orders", routes::order_routes())

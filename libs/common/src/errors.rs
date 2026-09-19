@@ -42,8 +42,9 @@ impl IntoResponse for AppError {
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "Internal server error".into(),
             ),
+            AppError::Database(e) if e.as_database_error().and_then(|e|e.code()).is_some_and(|c| c == "23514" || c == "23505") => (StatusCode::CONFLICT, "Operation conflicts with an existing record or an immutable production".into()),
             AppError::Database(e) => {
-                tracing::error!("Database error: {:?}", e);
+                tracing::error!(code = ?e.as_database_error().and_then(|db| db.code()), "Database operation failed");
                 (StatusCode::INTERNAL_SERVER_ERROR, "Database error".into())
             }
         };

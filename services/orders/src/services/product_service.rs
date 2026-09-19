@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Context};
-use serde::Serialize;
+
 use uuid::Uuid;
 
 use crate::dtos::product::product_api_data::ProductApiData;
@@ -38,38 +38,4 @@ pub async fn fetch_product(product_id: Uuid, token: &str) -> anyhow::Result<Prod
         .await
         .context("Failed to parse product response")?;
     Ok(body.data)
-}
-
-// ── Decrement quantity ────────────────────────────────────────────────────────
-
-#[derive(Serialize)]
-struct DecrementPayload {
-    quantity: f64,
-}
-
-pub async fn decrement_product_quantity(
-    product_id: Uuid,
-    quantity: f64,
-    token: &str,
-) -> anyhow::Result<()> {
-    let url = format!("{}/products/{}/decrement", base_url(), product_id);
-
-    let resp = reqwest::Client::new()
-        .patch(&url)
-        .bearer_auth(token)
-        .json(&DecrementPayload { quantity })
-        .timeout(std::time::Duration::from_secs(5))
-        .send()
-        .await
-        .context("Failed to reach product service")?;
-
-    if !resp.status().is_success() {
-        return Err(anyhow!(
-            "Failed to decrement quantity for product {}: {}",
-            product_id,
-            resp.status()
-        ));
-    }
-
-    Ok(())
 }

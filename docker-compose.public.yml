@@ -1,0 +1,15 @@
+services:
+  public-gateway:
+    build:
+      context: ./frontend/local-bite-frontend
+      dockerfile: Dockerfile.public
+    ports:
+      - "127.0.0.1:8081:8080"
+    restart: unless-stopped
+  public-tunnel:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate --url http://public-gateway:8080
+    depends_on:
+      - public-gateway
+    # Quick Tunnel URLs change on restart; rerun Start-PublicQr.ps1 to synchronize QR links.
+    restart: "no"

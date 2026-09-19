@@ -1,9 +1,9 @@
 use bigdecimal::BigDecimal;
 use chrono::NaiveDateTime;
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 use uuid::Uuid;
 
-#[derive(Debug, sqlx::FromRow, Serialize, Clone)]
+#[derive(Debug, sqlx::FromRow, Deserialize, Serialize, Clone)]
 pub struct Product {
     pub id: Uuid,
     pub farm_id: Uuid,
@@ -13,6 +13,7 @@ pub struct Product {
     pub quantity: BigDecimal,
     pub unit: String,
     pub price: BigDecimal,
+    pub expiry_date: Option<chrono::NaiveDate>,
     pub batch_id: Option<Uuid>,
     pub image_path: Option<String>,
     pub qr_token: Uuid,

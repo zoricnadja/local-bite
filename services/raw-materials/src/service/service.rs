@@ -45,6 +45,7 @@ impl RawMaterialService {
         farm_id: Uuid,
         req: CreateRawMaterialRequest,
     ) -> AppResult<RawMaterial> {
+        validate_dates(req.harvest_date, req.received_date, req.expiry_date)?;
         if req.name.trim().is_empty() {
             return Err(AppError::BadRequest("Name cannot be empty".into()));
         }
@@ -65,6 +66,7 @@ impl RawMaterialService {
                 req.unit.trim(),
                 req.supplier.as_deref(),
                 req.origin.as_deref(),
+                req.received_date,
                 req.harvest_date,
                 req.expiry_date,
                 req.notes.as_deref(),
@@ -84,6 +86,7 @@ impl RawMaterialService {
         req: UpdateRawMaterialRequest,
     ) -> AppResult<RawMaterial> {
         let existing = self.raw_material_repository.find_by_id(id, farm_id).await?;
+        validate_dates(req.harvest_date.or(existing.harvest_date), req.received_date.or(existing.received_date), req.expiry_date.or(existing.expiry_date))?;
 
         self.raw_material_repository
             .update(
@@ -97,6 +100,7 @@ impl RawMaterialService {
                 req.unit.as_deref().unwrap_or(&existing.unit),
                 req.supplier.as_deref().or(existing.supplier.as_deref()),
                 req.origin.as_deref().or(existing.origin.as_deref()),
+                req.received_date.or(existing.received_date),
                 req.harvest_date.or(existing.harvest_date),
                 req.expiry_date.or(existing.expiry_date),
                 req.notes.as_deref().or(existing.notes.as_deref()),
@@ -134,4 +138,13 @@ impl RawMaterialService {
                 "Material not found, not owned by your farm, or adjustment would result in negative stock".into(),
             ))
     }
+}
+
+fn validate_dates(harvest: Option<chrono::NaiveDate>, received: Option<chrono::NaiveDate>, expiry: Option<chrono::NaiveDate>) -> AppResult<()> {
+    if let Some(end) = expiry {
+        if harvest.is_some_and(|start| start > end) || received.is_some_and(|start| start > end) {
+            return Err(AppError::BadRequest("Expiry cannot be before harvest or receipt".into()));
+        }
+    }
+    Ok(())
 }

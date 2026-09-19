@@ -9,6 +9,7 @@ pub struct CreateRawMaterialRequest {
     pub unit: String,
     pub supplier: Option<String>,
     pub origin: Option<String>,
+    pub received_date: Option<NaiveDate>,
     pub harvest_date: Option<NaiveDate>, // "YYYY-MM-DD"
     pub expiry_date: Option<NaiveDate>,
     pub notes: Option<String>,

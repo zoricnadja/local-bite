@@ -1,0 +1,56 @@
+{
+  "measuredAt": "2026-09-17T23:18:48.863Z",
+  "environment": "local Docker; loopback HTTP; warm services; not a production capacity estimate",
+  "results": [
+    {
+      "path": "/",
+      "count": 100,
+      "concurrency": 5,
+      "failures": 0,
+      "p50Ms": 1.6,
+      "p95Ms": 8.15,
+      "p99Ms": 12.58,
+      "requestsPerSecond": 1260.89
+    },
+    {
+      "path": "/health/auth",
+      "count": 100,
+      "concurrency": 5,
+      "failures": 0,
+      "p50Ms": 1.39,
+      "p95Ms": 2,
+      "p99Ms": 2.63,
+      "requestsPerSecond": 3397.63
+    },
+    {
+      "path": "/health/products",
+      "count": 100,
+      "concurrency": 5,
+      "failures": 0,
+      "p50Ms": 1.35,
+      "p95Ms": 2.68,
+      "p99Ms": 3.07,
+      "requestsPerSecond": 3165.44
+    },
+    {
+      "path": "/health/orders",
+      "count": 100,
+      "concurrency": 5,
+      "failures": 0,
+      "p50Ms": 1.23,
+      "p95Ms": 1.88,
+      "p99Ms": 2.25,
+      "requestsPerSecond": 3618.87
+    },
+    {
+      "path": "/health/queries",
+      "count": 100,
+      "concurrency": 5,
+      "failures": 0,
+      "p50Ms": 1.23,
+      "p95Ms": 2.05,
+      "p99Ms": 2.29,
+      "requestsPerSecond": 3611.2
+    }
+  ]
+}

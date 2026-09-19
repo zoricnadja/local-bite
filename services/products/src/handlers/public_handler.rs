@@ -20,7 +20,7 @@ pub async fn scan(
     Extension(_provenance_service): Extension<Arc<ProvenanceService>>,
 ) -> AppResult<Response> {
     let result = _provenance_service.get_provenance_by_qr(_qr_token).await?;
-    Ok(ok(result))
+    Ok(ok(crate::dtos::public_provenance::PublicProvenance::from(result)))
 }
 
 /// Public, immutable-at-request-time certificate. The QR token is deliberately

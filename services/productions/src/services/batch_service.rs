@@ -1,3 +1,4 @@
+use crate::models::insert_production_params::InsertProductionParams;
 use bigdecimal::BigDecimal;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -9,7 +10,6 @@ use crate::dtos::production_batch_response::ProductionBatchResponse;
 use crate::dtos::raw_material_response::RawMaterialResponse;
 use crate::dtos::update_production_batch_request::UpdateProductionBatchRequest;
 use crate::models::batch_raw_material::BatchRawMaterial;
-use crate::models::insert_production_params::InsertProductionParams;
 use crate::models::insert_raw_material_params::InsertRawMaterialParams;
 use crate::models::process_step::ProcessStep;
 use crate::models::production_batch::ProductionBatch;
@@ -90,7 +90,7 @@ impl BatchService {
         let mut material_snapshots = Vec::new();
         if let Some(ref materials) = req.raw_materials {
             for m in materials {
-                if m.quantity_used <= 0.0 {
+                if !m.quantity_used.is_finite() || m.quantity_used < 0.001 {
                     return Err(AppError::BadRequest(format!(
                         "quantity_used must be > 0 for material {}",
                         m.raw_material_id
@@ -101,41 +101,90 @@ impl BatchService {
                     .fetch_raw_material(m.raw_material_id, token)
                     .await
                     .map_err(|e| AppError::BadRequest(e.to_string()))?;
+                if m.unit.trim() != snapshot.unit {
+                    return Err(AppError::BadRequest(format!(
+                        "Use {} for material {}",
+                        snapshot.unit, snapshot.name
+                    )));
+                }
+                if material_snapshots.iter().any(
+                    |(input, _): &(crate::dtos::raw_material_request::RawMaterialRequest, _)| {
+                        input.raw_material_id == m.raw_material_id
+                    },
+                ) {
+                    return Err(AppError::BadRequest(
+                        "Each material can only be added once".into(),
+                    ));
+                }
                 material_snapshots.push((m.clone(), snapshot));
             }
         }
 
         let batch_id = Uuid::new_v4();
+        let mut tx = self.batch_repository.pool.begin().await?;
         let batch = self
             .batch_repository
-            .insert(InsertProductionParams {
-                id: batch_id,
-                farm_id,
-                name: req.name.trim().to_string(),
-                process_type: req.process_type.trim().to_string(),
-                start_date: req.start_date,
-                end_date: req.end_date,
-                notes: req.notes,
-            })
+            .insert_in(
+                &mut tx,
+                InsertProductionParams {
+                    id: batch_id,
+                    farm_id,
+                    name: req.name.trim().to_string(),
+                    process_type: req.process_type.trim().to_string(),
+                    start_date: req.start_date,
+                    end_date: req.end_date,
+                    notes: req.notes,
+                },
+            )
             .await?;
+        let mut operations = Vec::new();
+        let mut operation_ids = Vec::new();
 
         for (input, snap) in &material_snapshots {
+            let operation_id = Uuid::new_v4();
+            crate::material_recovery::journal(&self.batch_repository.pool, &mut tx, operation_id, farm_id).await?;
+            operation_ids.push(operation_id);
+            operations.push(serde_json::json!({ "operation_id": operation_id, "raw_material_id": snap.id, "quantity": input.quantity_used, "unit": input.unit.trim() }));
             self.materials_repository
-                .insert(InsertRawMaterialParams {
-                    id: Uuid::new_v4(),
-                    batch_id,
-                    farm_id,
-                    raw_material_id: snap.id,
-                    raw_material_name: snap.name.clone(),
-                    material_type: snap.material_type.clone(),
-                    quantity_used: dec(input.quantity_used),
-                    unit: input.unit.trim().to_string(),
-                    origin: snap.origin.clone(),
-                    supplier: snap.supplier.clone(),
-                })
+                .insert_in(
+                    &mut tx,
+                    InsertRawMaterialParams {
+                        id: operation_id,
+                        batch_id,
+                        farm_id,
+                        raw_material_id: snap.id,
+                        raw_material_name: snap.name.clone(),
+                        material_type: snap.material_type.clone(),
+                        quantity_used: dec(input.quantity_used),
+                        unit: input.unit.trim().to_string(),
+                        origin: snap.origin.clone(),
+                        supplier: snap.supplier.clone(),
+                        harvest_date: snap.harvest_date,
+                        received_date: snap.received_date,
+                        expiry_date: snap.expiry_date,
+                    },
+                )
                 .await?;
         }
 
+        if !operations.is_empty() {
+            if let Err(error) = self
+                .raw_materials_service
+                .consume(&serde_json::json!(operations), token)
+                .await
+            {
+                self.raw_materials_service
+                    .compensate(&operation_ids, token)
+                    .await?;
+                return Err(error);
+            }
+        }
+        if let Err(error) = tx.commit().await {
+            self.raw_materials_service
+                .compensate(&operation_ids, token)
+                .await?;
+            return Err(error.into());
+        }
         self.assemble_detail(batch).await
     }
 
@@ -162,12 +211,25 @@ impl BatchService {
             .find_by_id_and_farm(id, farm_id)
             .await?;
 
+        if existing.status == "COMPLETED" {
+            return Err(AppError::BadRequest("Completed production is immutable; its output is already in Storage".into()));
+        }
+        let completing = req.status.as_deref() == Some("COMPLETED");
+        if completing {
+            if req.output_quantity.is_none_or(|q| !q.is_finite() || q <= 0.0)
+                || req.output_name.as_deref().is_none_or(|v| v.trim().is_empty())
+                || req.output_type.as_deref().is_none_or(|v| !["meat","dairy","vegetable","fruit","cheese","sausage","honey","other"].contains(&v))
+                || req.output_unit.as_deref().is_none_or(|v| !["kg","g","l","ml","pcs"].contains(&v)) {
+                return Err(AppError::BadRequest("Completion requires product name, type, unit and a positive output quantity".into()));
+            }
+        }
         if let Some(ref new_status) = req.status {
             self.validate_status_transition(&existing.status, new_status)?;
         }
 
-        let new_start = req.start_date.or(existing.start_date);
-        let new_end = req.end_date.or(existing.end_date);
+        let new_start = req.start_date.or(existing.start_date).or_else(|| if req.status.as_deref()==Some("IN_PROGRESS") || completing { Some(chrono::Utc::now().date_naive()) } else { None });
+        let new_end = req.end_date.or(existing.end_date).or_else(|| if completing { Some(chrono::Utc::now().date_naive()) } else { None });
+        if completing && req.output_expiry_date.zip(new_end).is_some_and(|(expiry,end)| expiry < end) { return Err(AppError::BadRequest("Product expiry cannot be before production ends".into())); }
 
         if let (Some(s), Some(e)) = (new_start, new_end) {
             if e < s {
@@ -183,6 +245,7 @@ impl BatchService {
                 id,
                 farm_id,
                 UpdateProductionParams {
+                    output_name: req.output_name, output_type: req.output_type, output_unit: req.output_unit, output_quantity: req.output_quantity, output_expiry_date: req.output_expiry_date,
                     name: req.name.as_deref().unwrap_or(&existing.name).to_string(),
                     process_type: req
                         .process_type
@@ -202,6 +265,7 @@ impl BatchService {
                         .unwrap_or(&existing.status)
                         .to_string(),
                 },
+                &existing.status,
             )
             .await?;
 
@@ -216,9 +280,9 @@ impl BatchService {
             .find_by_id_and_farm(id, farm_id)
             .await?;
 
-        if batch.status == "IN_PROGRESS" {
+        if batch.status == "IN_PROGRESS" || batch.status == "COMPLETED" {
             return Err(AppError::BadRequest(
-                "Cannot delete a batch that is IN_PROGRESS. Cancel it first.".into(),
+                "Cannot delete an in-progress or completed production batch.".into(),
             ));
         }
 
@@ -247,6 +311,7 @@ impl BatchService {
             process_type: batch.process_type,
             start_date: batch.start_date.map(|d| d.to_string()),
             end_date: batch.end_date.map(|d| d.to_string()),
+            output_name: batch.output_name, output_type: batch.output_type, output_unit: batch.output_unit, output_quantity: batch.output_quantity, output_expiry_date: batch.output_expiry_date,
             status: batch.status,
             notes: batch.notes,
             created_at: batch.created_at,
@@ -305,6 +370,9 @@ impl BatchService {
             unit: m.unit,
             origin: m.origin,
             supplier: m.supplier,
+            harvest_date: m.harvest_date,
+            received_date: m.received_date,
+            expiry_date: m.expiry_date,
         }
     }
 }
