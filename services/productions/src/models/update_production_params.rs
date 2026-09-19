@@ -4,6 +4,7 @@ pub struct UpdateProductionParams {
     pub start_date: Option<chrono::NaiveDate>,
     pub end_date: Option<chrono::NaiveDate>,
     pub notes: Option<String>,
+    pub outputs: serde_json::Value,
     pub output_name: Option<String>,
     pub output_type: Option<String>,
     pub output_unit: Option<String>,

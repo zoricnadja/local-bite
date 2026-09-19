@@ -10,5 +10,6 @@ pub struct UpdateParams {
     pub price: BigDecimal,
     pub expiry_date: Option<chrono::NaiveDate>,
     pub batch_id: Option<Uuid>,
+    pub status: String,
     pub is_active: bool,
 }

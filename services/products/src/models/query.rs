@@ -7,6 +7,7 @@ pub struct ListQuery {
     pub product_type: Option<String>,
     pub search: Option<String>,
     pub farm_id: Option<uuid::Uuid>,
+    pub status: Option<String>,
     pub is_active: Option<bool>,
     pub active_only: Option<bool>,
 }

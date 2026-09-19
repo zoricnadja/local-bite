@@ -18,6 +18,7 @@ pub struct Product {
     pub image_path: Option<String>,
     pub qr_token: Uuid,
     pub qr_path: Option<String>,
+    pub status: String,
     pub is_active: bool,
     pub is_deleted: bool,
     pub created_at: NaiveDateTime,

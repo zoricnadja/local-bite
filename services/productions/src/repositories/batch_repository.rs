@@ -30,7 +30,7 @@ impl BatchRepository {
 
         let items = sqlx::query_as::<_, ProductionBatch>(r#"
             SELECT id, farm_id, name, process_type, start_date, end_date,
-                   status, notes, is_deleted, created_at, updated_at, output_name, output_type, output_unit, output_quantity, output_expiry_date
+                   status, notes, is_deleted, created_at, updated_at, outputs, output_name, output_type, output_unit, output_quantity, output_expiry_date
             FROM   production_batches
             WHERE  farm_id    = $1
               AND  is_deleted = FALSE
@@ -66,7 +66,7 @@ impl BatchRepository {
     pub async fn find_by_id_and_farm(&self, id: Uuid, farm_id: Uuid) -> AppResult<ProductionBatch> {
         sqlx::query_as::<_, ProductionBatch>(r#"
             SELECT id, farm_id, name, process_type, start_date, end_date,
-                   status, notes, is_deleted, created_at, updated_at, output_name, output_type, output_unit, output_quantity, output_expiry_date
+                   status, notes, is_deleted, created_at, updated_at, outputs, output_name, output_type, output_unit, output_quantity, output_expiry_date
             FROM   production_batches
             WHERE  id = $1 AND farm_id = $2 AND is_deleted = FALSE
             "#).bind(id).bind(farm_id)
@@ -85,7 +85,7 @@ impl BatchRepository {
                 (id, farm_id, name, process_type, start_date, end_date, notes)
             VALUES ($1, $2, $3, $4, $5, $6, $7)
             RETURNING id, farm_id, name, process_type, start_date, end_date,
-                      status, notes, is_deleted, created_at, updated_at, output_name, output_type, output_unit, output_quantity, output_expiry_date
+                      status, notes, is_deleted, created_at, updated_at, outputs, output_name, output_type, output_unit, output_quantity, output_expiry_date
             "#).bind(p.id).bind(p.farm_id).bind(p.name).bind(p.process_type).bind(p.start_date).bind(p.end_date).bind(p.notes.as_deref())
 .fetch_one(&mut **tx)
         .await?)
@@ -105,11 +105,11 @@ impl BatchRepository {
                 start_date   = $3,
                 end_date     = $4,
                 notes        = $5,
-                status       = $6, output_name=$9, output_type=$10, output_unit=$11, output_quantity=$12, output_expiry_date=$13
+                status       = $6, output_name=$9, output_type=$10, output_unit=$11, output_quantity=$12, output_expiry_date=$13, outputs=$15
             WHERE id = $7 AND farm_id = $8 AND is_deleted = FALSE AND status=$14
             RETURNING id, farm_id, name, process_type, start_date, end_date,
-                      status, notes, is_deleted, created_at, updated_at, output_name, output_type, output_unit, output_quantity, output_expiry_date
-            "#).bind(p.name).bind(p.process_type).bind(p.start_date).bind(p.end_date).bind(p.notes.as_deref()).bind(p.status).bind(id).bind(farm_id).bind(p.output_name).bind(p.output_type).bind(p.output_unit).bind(p.output_quantity).bind(p.output_expiry_date).bind(expected_status)
+                      status, notes, is_deleted, created_at, updated_at, outputs, output_name, output_type, output_unit, output_quantity, output_expiry_date
+            "#).bind(p.name).bind(p.process_type).bind(p.start_date).bind(p.end_date).bind(p.notes.as_deref()).bind(p.status).bind(id).bind(farm_id).bind(p.output_name).bind(p.output_type).bind(p.output_unit).bind(p.output_quantity).bind(p.output_expiry_date).bind(expected_status).bind(p.outputs)
 .fetch_one(&self.pool)
         .await?)
     }

@@ -78,13 +78,18 @@ impl ProductService {
         &self,
         id: Uuid,
         farm_id: Uuid,
-        req: UpdateProductRequest,
+        mut req: UpdateProductRequest,
     ) -> AppResult<Product> {
         let existing = self
             .product_repository
             .find_by_id_and_farm(id, farm_id)
             .await?;
 
+        if existing.status == "PRODUCTION" { return Err(AppError::BadRequest("Edit planned products through their production batch".into())); }
+        if let Some(status) = &req.status {
+            if !["STORAGE", "ON_SALE"].contains(&status.as_str()) { return Err(AppError::BadRequest("Invalid product state".into())); }
+            req.is_active = Some(status == "ON_SALE");
+        }
         ProductPolicyFactory::for_type(req.product_type.as_deref().unwrap_or(&existing.product_type)).validate(&CreateProductRequest {
             name:req.name.clone().unwrap_or_else(||existing.name.clone()),product_type:req.product_type.clone().unwrap_or_else(||existing.product_type.clone()),description:req.description.clone(),
             quantity:req.quantity.unwrap_or_else(||existing.quantity.to_string().parse().unwrap_or(0.0)),
@@ -122,6 +127,7 @@ impl ProductService {
                     price: req.price.map(dec).unwrap_or(existing.price),
                     expiry_date: req.expiry_date.or(existing.expiry_date),
                     batch_id: req.batch_id.or(existing.batch_id),
+                    status: if req.is_active.unwrap_or(existing.is_active) { "ON_SALE" } else { "STORAGE" }.into(),
                     is_active: req.is_active.unwrap_or(existing.is_active),
                 },
             )
@@ -129,6 +135,10 @@ impl ProductService {
     }
 
     pub async fn delete(&self, id: Uuid, farm_id: Uuid) -> AppResult<()> {
+        let product = self.product_repository.find_by_id_and_farm(id, farm_id).await?;
+        if product.status == "PRODUCTION" {
+            return Err(AppError::BadRequest("Remove planned products through their production batch".into()));
+        }
         let rows = self.product_repository.soft_delete(id, farm_id).await?;
         if rows == 0 {
             return Err(AppError::NotFound(format!("Product {} not found", id)));

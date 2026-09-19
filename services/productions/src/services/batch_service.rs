@@ -215,13 +215,30 @@ impl BatchService {
             return Err(AppError::BadRequest("Completed production is immutable; its output is already in Storage".into()));
         }
         let completing = req.status.as_deref() == Some("COMPLETED");
-        if completing {
-            if req.output_quantity.is_none_or(|q| !q.is_finite() || q <= 0.0)
-                || req.output_name.as_deref().is_none_or(|v| v.trim().is_empty())
-                || req.output_type.as_deref().is_none_or(|v| !["meat","dairy","vegetable","fruit","cheese","sausage","honey","other"].contains(&v))
-                || req.output_unit.as_deref().is_none_or(|v| !["kg","g","l","ml","pcs"].contains(&v)) {
-                return Err(AppError::BadRequest("Completion requires product name, type, unit and a positive output quantity".into()));
+        let mut outputs = req.outputs.clone().unwrap_or_else(|| existing.outputs.clone());
+        let rows = outputs.as_array_mut().ok_or_else(|| AppError::BadRequest("Outputs must be an array".into()))?;
+        if completing && rows.is_empty() { return Err(AppError::BadRequest("Add at least one final product".into())); }
+        if existing.status == "CANCELLED" { return Err(AppError::BadRequest("Cancelled production cannot be edited".into())); }
+        let mut ids = std::collections::HashSet::new();
+        for row in rows {
+            if !row.is_object() { return Err(AppError::BadRequest("Each output must be an object".into())); }
+            if row["id"].is_null() { row["id"] = serde_json::json!(Uuid::new_v4()); }
+            let output_id: Uuid = serde_json::from_value(row["id"].clone()).map_err(|_| AppError::BadRequest("Invalid output ID".into()))?;
+            if !ids.insert(output_id) { return Err(AppError::BadRequest("Duplicate output ID".into())); }
+            if row["name"].as_str().is_none_or(|v|v.trim().is_empty())
+                || row["quantity"].as_f64().is_none_or(|v|!v.is_finite() || v<=0.0)
+                || row["price"].as_f64().is_none_or(|v|!v.is_finite() || v<0.0)
+                || row["product_type"].as_str().is_none_or(|v|!["meat","dairy","vegetable","fruit","cheese","sausage","honey","other"].contains(&v))
+                || row["unit"].as_str().is_none_or(|v|!["kg","g","l","ml","pcs"].contains(&v)) {
+                return Err(AppError::BadRequest("Each product requires a name, type, positive quantity, unit and non-negative price".into()));
             }
+            if let Some(expiry) = row["expiry_date"].as_str().filter(|v|!v.is_empty()) {
+                let expiry = chrono::NaiveDate::parse_from_str(expiry,"%Y-%m-%d").map_err(|_|AppError::BadRequest("Invalid expiry date".into()))?;
+                if completing && expiry < req.end_date.unwrap_or_else(||chrono::Utc::now().date_naive()) { return Err(AppError::BadRequest("Expiry cannot precede production end".into())); }
+            }
+            // Preserve the server's last saved plan when measured values replace it.
+            if completing { row["planned"] = existing.outputs.as_array().and_then(|items|items.iter().find(|v|v["id"]==row["id"])).cloned().unwrap_or(serde_json::Value::Null); }
+            else { row.as_object_mut().unwrap().remove("planned"); }
         }
         if let Some(ref new_status) = req.status {
             self.validate_status_transition(&existing.status, new_status)?;
@@ -245,6 +262,7 @@ impl BatchService {
                 id,
                 farm_id,
                 UpdateProductionParams {
+                    outputs,
                     output_name: req.output_name, output_type: req.output_type, output_unit: req.output_unit, output_quantity: req.output_quantity, output_expiry_date: req.output_expiry_date,
                     name: req.name.as_deref().unwrap_or(&existing.name).to_string(),
                     process_type: req
@@ -311,6 +329,7 @@ impl BatchService {
             process_type: batch.process_type,
             start_date: batch.start_date.map(|d| d.to_string()),
             end_date: batch.end_date.map(|d| d.to_string()),
+            outputs: batch.outputs,
             output_name: batch.output_name, output_type: batch.output_type, output_unit: batch.output_unit, output_quantity: batch.output_quantity, output_expiry_date: batch.output_expiry_date,
             status: batch.status,
             notes: batch.notes,

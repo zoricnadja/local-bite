@@ -8,6 +8,7 @@ pub struct UpdateProductionBatchRequest {
     pub start_date: Option<NaiveDate>,
     pub end_date: Option<NaiveDate>,
     pub notes: Option<String>,
+    pub outputs: Option<serde_json::Value>,
     pub output_name: Option<String>,
     pub output_type: Option<String>,
     pub output_unit: Option<String>,

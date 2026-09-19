@@ -11,5 +11,6 @@ pub struct UpdateProductRequest {
     pub price: Option<f64>,
     pub expiry_date: Option<chrono::NaiveDate>,
     pub batch_id: Option<Uuid>,
+    pub status: Option<String>,
     pub is_active: Option<bool>,
 }

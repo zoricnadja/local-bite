@@ -9,6 +9,7 @@ pub struct ProductionBatch {
     pub process_type: String,
     pub start_date: Option<NaiveDate>,
     pub end_date: Option<NaiveDate>,
+    pub outputs: serde_json::Value,
     pub output_name: Option<String>,
     pub output_type: Option<String>,
     pub output_unit: Option<String>,
