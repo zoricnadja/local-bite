@@ -25,47 +25,38 @@ impl BatchRepository {
         let offset = q.offset();
         let limit = q.limit();
         let status_f = q.status.as_deref().unwrap_or("");
-        let type_f = q.process_type.as_deref().unwrap_or("");
         let search_f = q.search.as_deref().unwrap_or("");
 
         let items = sqlx::query_as::<_, ProductionBatch>(r#"
-            SELECT id, farm_id, name, process_type, start_date, end_date,
+            SELECT id, farm_id, name, start_date, end_date,
                    status, notes, is_deleted, created_at, updated_at, outputs, output_name, output_type, output_unit, output_quantity, output_expiry_date
             FROM   production_batches
             WHERE  farm_id    = $1
               AND  is_deleted = FALSE
               AND  ($2 = '' OR status       ILIKE $2)
-              AND  ($3 = '' OR process_type ILIKE $3)
-              AND  ($4 = '' OR name         ILIKE '%' || $4 || '%')
+              AND  ($3 = '' OR name         ILIKE '%' || $3 || '%')
             ORDER  BY created_at DESC
-            LIMIT  $5 OFFSET $6
-            "#).bind(farm_id).bind(status_f).bind(type_f).bind(search_f).bind(limit).bind(offset)
+            LIMIT  $4 OFFSET $5
+            "#).bind(farm_id).bind(status_f).bind(search_f).bind(limit).bind(offset)
 .fetch_all(&self.pool)
         .await?;
 
-        let total: i64 = sqlx::query_scalar!(
+        let total: i64 = sqlx::query_scalar::<_, i64>(
             r#"
             SELECT COUNT(*) FROM production_batches
             WHERE  farm_id = $1 AND is_deleted = FALSE
               AND  ($2 = '' OR status       ILIKE $2)
-              AND  ($3 = '' OR process_type ILIKE $3)
-              AND  ($4 = '' OR name         ILIKE '%' || $4 || '%')
-            "#,
-            farm_id,
-            status_f,
-            type_f,
-            search_f
-        )
+              AND  ($3 = '' OR name         ILIKE '%' || $3 || '%')
+            "#).bind(farm_id).bind(status_f).bind(search_f)
         .fetch_one(&self.pool)
-        .await?
-        .unwrap_or(0);
+        .await?;
 
         Ok((items, total))
     }
 
     pub async fn find_by_id_and_farm(&self, id: Uuid, farm_id: Uuid) -> AppResult<ProductionBatch> {
         sqlx::query_as::<_, ProductionBatch>(r#"
-            SELECT id, farm_id, name, process_type, start_date, end_date,
+            SELECT id, farm_id, name, start_date, end_date,
                    status, notes, is_deleted, created_at, updated_at, outputs, output_name, output_type, output_unit, output_quantity, output_expiry_date
             FROM   production_batches
             WHERE  id = $1 AND farm_id = $2 AND is_deleted = FALSE
@@ -82,11 +73,11 @@ impl BatchRepository {
     ) -> AppResult<ProductionBatch> {
         Ok(sqlx::query_as::<_, ProductionBatch>(r#"
             INSERT INTO production_batches
-                (id, farm_id, name, process_type, start_date, end_date, notes)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
-            RETURNING id, farm_id, name, process_type, start_date, end_date,
+                (id, farm_id, name, start_date, end_date, notes)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            RETURNING id, farm_id, name, start_date, end_date,
                       status, notes, is_deleted, created_at, updated_at, outputs, output_name, output_type, output_unit, output_quantity, output_expiry_date
-            "#).bind(p.id).bind(p.farm_id).bind(p.name).bind(p.process_type).bind(p.start_date).bind(p.end_date).bind(p.notes.as_deref())
+            "#).bind(p.id).bind(p.farm_id).bind(p.name).bind(p.start_date).bind(p.end_date).bind(p.notes.as_deref())
 .fetch_one(&mut **tx)
         .await?)
     }
@@ -101,15 +92,14 @@ impl BatchRepository {
         Ok(sqlx::query_as::<_, ProductionBatch>(r#"
             UPDATE production_batches SET
                 name         = $1,
-                process_type = $2,
-                start_date   = $3,
-                end_date     = $4,
-                notes        = $5,
-                status       = $6, output_name=$9, output_type=$10, output_unit=$11, output_quantity=$12, output_expiry_date=$13, outputs=$15
-            WHERE id = $7 AND farm_id = $8 AND is_deleted = FALSE AND status=$14
-            RETURNING id, farm_id, name, process_type, start_date, end_date,
+                start_date   = $2,
+                end_date     = $3,
+                notes        = $4,
+                status       = $5, output_name=$8, output_type=$9, output_unit=$10, output_quantity=$11, output_expiry_date=$12, outputs=$14
+            WHERE id = $6 AND farm_id = $7 AND is_deleted = FALSE AND status=$13
+            RETURNING id, farm_id, name, start_date, end_date,
                       status, notes, is_deleted, created_at, updated_at, outputs, output_name, output_type, output_unit, output_quantity, output_expiry_date
-            "#).bind(p.name).bind(p.process_type).bind(p.start_date).bind(p.end_date).bind(p.notes.as_deref()).bind(p.status).bind(id).bind(farm_id).bind(p.output_name).bind(p.output_type).bind(p.output_unit).bind(p.output_quantity).bind(p.output_expiry_date).bind(expected_status).bind(p.outputs)
+            "#).bind(p.name).bind(p.start_date).bind(p.end_date).bind(p.notes.as_deref()).bind(p.status).bind(id).bind(farm_id).bind(p.output_name).bind(p.output_type).bind(p.output_unit).bind(p.output_quantity).bind(p.output_expiry_date).bind(expected_status).bind(p.outputs)
 .fetch_one(&self.pool)
         .await?)
     }

@@ -79,7 +79,7 @@ class ReportLabCertificateBuilder(CertificateBuilder):
             self.story += [self.p('Production information is temporarily unavailable.')]
             return
         self.story += [self.fields([
-            ('Batch', batch['name']), ('Process', batch['process_type']),
+            ('Batch', batch['name']),
             ('Status', batch['status'].replace('_', ' ').title()),
             ('Production start', batch.get('start_date')), ('Production end', batch.get('end_date')),
         ])]

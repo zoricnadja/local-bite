@@ -16,17 +16,16 @@ impl StepRepository {
         Self { pool }
     }
     pub async fn find_by_batch(&self, batch_id: Uuid) -> AppResult<Vec<ProcessStep>> {
-        Ok(sqlx::query_as!(
-            ProcessStep,
+        Ok(sqlx::query_as::<_, ProcessStep>(
             r#"
             SELECT id, batch_id, farm_id, step_order, name, description,
-                   duration_hours, temperature, created_at, updated_at
+                   variables, status, created_at, updated_at
             FROM   process_steps
             WHERE  batch_id = $1
             ORDER  BY step_order ASC
             "#,
-            batch_id
         )
+        .bind(batch_id)
         .fetch_all(&self.pool)
         .await?)
     }
@@ -36,17 +35,16 @@ impl StepRepository {
         step_id: Uuid,
         batch_id: Uuid,
     ) -> AppResult<ProcessStep> {
-        sqlx::query_as!(
-            ProcessStep,
+        sqlx::query_as::<_, ProcessStep>(
             r#"
             SELECT id, batch_id, farm_id, step_order, name, description,
-                   duration_hours, temperature, created_at, updated_at
+                   variables, status, created_at, updated_at
             FROM   process_steps
             WHERE  id = $1 AND batch_id = $2
             "#,
-            step_id,
-            batch_id
         )
+        .bind(step_id)
+        .bind(batch_id)
         .fetch_optional(&self.pool)
         .await?
         .ok_or_else(|| AppError::NotFound(format!("Step {} not found", step_id)))
@@ -77,24 +75,22 @@ impl StepRepository {
     }
 
     pub async fn insert(&self, p: InsertStepParams) -> AppResult<ProcessStep> {
-        Ok(sqlx::query_as!(
-            ProcessStep,
+        Ok(sqlx::query_as::<_, ProcessStep>(
             r#"
             INSERT INTO process_steps
-                (id, batch_id, farm_id, step_order, name, description, duration_hours, temperature)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                (id, batch_id, farm_id, step_order, name, description, variables)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
             RETURNING id, batch_id, farm_id, step_order, name, description,
-                      duration_hours, temperature, created_at, updated_at
+                      variables, status, created_at, updated_at
             "#,
-            p.id,
-            p.batch_id,
-            p.farm_id,
-            p.step_order,
-            p.name,
-            p.description.as_deref(),
-            p.duration_hours,
-            p.temperature
         )
+        .bind(p.id)
+        .bind(p.batch_id)
+        .bind(p.farm_id)
+        .bind(p.step_order)
+        .bind(p.name)
+        .bind(p.description)
+        .bind(p.variables)
         .fetch_one(&self.pool)
         .await?)
     }
@@ -105,27 +101,26 @@ impl StepRepository {
         batch_id: Uuid,
         p: UpdateStepParams,
     ) -> AppResult<ProcessStep> {
-        Ok(sqlx::query_as!(
-            ProcessStep,
+        Ok(sqlx::query_as::<_, ProcessStep>(
             r#"
             UPDATE process_steps SET
                 step_order     = $1,
                 name           = $2,
                 description    = $3,
-                duration_hours = $4,
-                temperature    = $5
-            WHERE id = $6 AND batch_id = $7
+                variables      = $4,
+                status         = $7
+            WHERE id = $5 AND batch_id = $6
             RETURNING id, batch_id, farm_id, step_order, name, description,
-                      duration_hours, temperature, created_at, updated_at
+                      variables, status, created_at, updated_at
             "#,
-            p.step_order,
-            p.name,
-            p.description.as_deref(),
-            p.duration_hours,
-            p.temperature,
-            step_id,
-            batch_id
         )
+        .bind(p.step_order)
+        .bind(p.name)
+        .bind(p.description)
+        .bind(p.variables)
+        .bind(step_id)
+        .bind(batch_id)
+        .bind(p.status)
         .fetch_one(&self.pool)
         .await?)
     }

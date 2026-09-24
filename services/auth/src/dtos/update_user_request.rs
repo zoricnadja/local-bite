@@ -11,6 +11,5 @@ pub struct UpdateUserRequest {
     pub last_name: Option<String>,
     pub address: Option<String>,
     pub phone: Option<String>,
-    pub photo_url: Option<String>,
     pub date_of_birth: Option<NaiveDate>,
 }

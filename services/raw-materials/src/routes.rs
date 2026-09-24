@@ -7,6 +7,7 @@ use crate::handlers::materials;
 
 pub fn raw_material_routes() -> Router {
     Router::new()
+        .route("/types", get(common::type_catalog::list).post(common::type_catalog::create))
         .route("/", get(materials::list).post(materials::create))
         .route("/low-stock", get(materials::low_stock))
         .route(

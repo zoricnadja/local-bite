@@ -1,4 +1,3 @@
-use bigdecimal::BigDecimal;
 use uuid::Uuid;
 
 pub struct InsertStepParams {
@@ -8,6 +7,5 @@ pub struct InsertStepParams {
     pub step_order: i32,
     pub name: String,
     pub description: Option<String>,
-    pub duration_hours: Option<BigDecimal>,
-    pub temperature: Option<BigDecimal>,
+    pub variables: serde_json::Value,
 }

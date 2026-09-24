@@ -75,9 +75,6 @@ impl BatchService {
         if req.name.trim().is_empty() {
             return Err(AppError::BadRequest("Batch name cannot be empty".into()));
         }
-        if req.process_type.trim().is_empty() {
-            return Err(AppError::BadRequest("Process type cannot be empty".into()));
-        }
         if let (Some(s), Some(e)) = (req.start_date, req.end_date) {
             if e < s {
                 return Err(AppError::BadRequest(
@@ -130,7 +127,6 @@ impl BatchService {
                     id: batch_id,
                     farm_id,
                     name: req.name.trim().to_string(),
-                    process_type: req.process_type.trim().to_string(),
                     start_date: req.start_date,
                     end_date: req.end_date,
                     notes: req.notes,
@@ -215,6 +211,15 @@ impl BatchService {
             return Err(AppError::BadRequest("Completed production is immutable; its output is already in Storage".into()));
         }
         let completing = req.status.as_deref() == Some("COMPLETED");
+        if completing {
+            let steps = self.step_repository.find_by_batch(id).await?;
+            if steps.is_empty() || steps.iter().any(|s| s.status != "COMPLETED") {
+                return Err(AppError::BadRequest("Complete all process steps before completing production".into()));
+            }
+        }
+        if existing.status == "PLANNED" && req.status.as_deref() == Some("IN_PROGRESS") {
+            return Err(AppError::BadRequest("Start a process step to start production".into()));
+        }
         let mut outputs = req.outputs.clone().unwrap_or_else(|| existing.outputs.clone());
         let rows = outputs.as_array_mut().ok_or_else(|| AppError::BadRequest("Outputs must be an array".into()))?;
         if completing && rows.is_empty() { return Err(AppError::BadRequest("Add at least one final product".into())); }
@@ -265,11 +270,6 @@ impl BatchService {
                     outputs,
                     output_name: req.output_name, output_type: req.output_type, output_unit: req.output_unit, output_quantity: req.output_quantity, output_expiry_date: req.output_expiry_date,
                     name: req.name.as_deref().unwrap_or(&existing.name).to_string(),
-                    process_type: req
-                        .process_type
-                        .as_deref()
-                        .unwrap_or(&existing.process_type)
-                        .to_string(),
                     start_date: new_start,
                     end_date: new_end,
                     notes: req
@@ -326,7 +326,6 @@ impl BatchService {
             id: batch.id,
             farm_id: batch.farm_id,
             name: batch.name,
-            process_type: batch.process_type,
             start_date: batch.start_date.map(|d| d.to_string()),
             end_date: batch.end_date.map(|d| d.to_string()),
             outputs: batch.outputs,
@@ -369,14 +368,10 @@ impl BatchService {
         ProcessStepResponse {
             id: s.id,
             step_order: s.step_order,
+            status: s.status,
             name: s.name,
             description: s.description,
-            duration_hours: s
-                .duration_hours
-                .map(|v| f64::from_str(&v.to_string()).unwrap_or(0.0)),
-            temperature: s
-                .temperature
-                .map(|v| f64::from_str(&v.to_string()).unwrap_or(0.0)),
+            variables: s.variables,
         }
     }
 

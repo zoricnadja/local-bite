@@ -84,9 +84,6 @@ impl UserService {
         if let Some(v) = payload.phone {
             user.phone = Some(v);
         }
-        if let Some(v) = payload.photo_url {
-            user.photo_url = Some(v);
-        }
         if let Some(v) = payload.date_of_birth {
             user.date_of_birth = Some(v);
         }

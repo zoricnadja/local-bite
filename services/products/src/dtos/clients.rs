@@ -17,7 +17,6 @@ struct BatchApiResponse {
 struct BatchApiData {
     id: Uuid,
     name: String,
-    process_type: String,
     start_date: Option<String>,
     end_date: Option<String>,
     status: String,
@@ -29,10 +28,11 @@ struct BatchApiData {
 struct StepApiData {
     id: Uuid,
     step_order: i32,
+    status: String,
     name: String,
     description: Option<String>,
-    duration_hours: Option<f64>,
-    temperature: Option<f64>,
+    #[serde(default)]
+    variables: Vec<crate::models::process_step_ref::StepVariableRef>,
 }
 
 #[derive(Deserialize)]
@@ -76,7 +76,6 @@ pub async fn fetch_batch(batch_id: Uuid, token: &str) -> anyhow::Result<BatchRef
     Ok(BatchRef {
         id: d.id,
         name: d.name,
-        process_type: d.process_type,
         start_date: d.start_date,
         end_date: d.end_date,
         status: d.status,
@@ -86,10 +85,10 @@ pub async fn fetch_batch(batch_id: Uuid, token: &str) -> anyhow::Result<BatchRef
             .map(|s| ProcessStepRef {
                 id: s.id,
                 step_order: s.step_order,
+                status: s.status,
                 name: s.name,
                 description: s.description,
-                duration_hours: s.duration_hours,
-                temperature: s.temperature,
+                variables: s.variables,
             })
             .collect(),
         raw_materials: d

@@ -9,7 +9,6 @@ pub struct ProductionBatchResponse {
     pub id: Uuid,
     pub farm_id: Uuid,
     pub name: String,
-    pub process_type: String,
     pub start_date: Option<String>, // ISO string for easy JSON
     pub end_date: Option<String>,
     pub outputs: serde_json::Value,

@@ -53,6 +53,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/health", get(|| async { "ok" }))
         .nest("/batches", routes::production_routes())
         .layer(CorsLayer::permissive())
+        .layer(Extension(pool))
         .layer(Extension(batch_service))
         .layer(Extension(step_service))
         .layer(Extension(raw_materials_service));

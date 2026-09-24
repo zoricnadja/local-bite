@@ -7,7 +7,6 @@ use uuid::Uuid;
 pub struct BatchRef {
     pub id: Uuid,
     pub name: String,
-    pub process_type: String,
     pub start_date: Option<String>,
     pub end_date: Option<String>,
     pub status: String,

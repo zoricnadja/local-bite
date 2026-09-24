@@ -1,5 +1,3 @@
-use bigdecimal::BigDecimal;
-use std::str::FromStr;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -13,10 +11,6 @@ use crate::repositories::batch_repository::BatchRepository;
 use crate::repositories::step_repository::StepRepository;
 use crate::services::batch_service::BatchService;
 use common::errors::{AppError, AppResult};
-
-fn dec(v: f64) -> BigDecimal {
-    BigDecimal::from_str(&v.to_string()).unwrap_or_default()
-}
 
 #[derive(Clone)]
 pub struct StepService {
@@ -49,7 +43,7 @@ impl StepService {
         &self,
         batch_id: Uuid,
         farm_id: Uuid,
-        req: CreateProcessStepRequest,
+        mut req: CreateProcessStepRequest,
     ) -> AppResult<ProcessStep> {
         let batch = self
             .batch_repository
@@ -61,6 +55,10 @@ impl StepService {
                 "Cannot add steps to a {} batch",
                 batch.status
             )));
+        }
+        crate::models::process_step::validate_variables(&mut req.variables)?;
+        if req.step_order < 1 {
+            return Err(AppError::BadRequest("Step order must be positive".into()));
         }
         if req.name.trim().is_empty() {
             return Err(AppError::BadRequest("Step name cannot be empty".into()));
@@ -84,8 +82,8 @@ impl StepService {
                 step_order: req.step_order,
                 name: req.name.trim().to_string(),
                 description: req.description,
-                duration_hours: req.duration_hours.map(dec),
-                temperature: req.temperature.map(dec),
+                variables: serde_json::to_value(req.variables)
+                    .map_err(|e| AppError::BadRequest(e.to_string()))?,
             })
             .await
     }
@@ -95,16 +93,38 @@ impl StepService {
         batch_id: Uuid,
         step_id: Uuid,
         farm_id: Uuid,
-        req: UpdateProcessStepRequest,
+        mut req: UpdateProcessStepRequest,
     ) -> AppResult<ProcessStep> {
-        self.batch_repository
+        let batch = self
+            .batch_repository
             .find_by_id_and_farm(batch_id, farm_id)
             .await?;
+        if batch.status == "COMPLETED" || batch.status == "CANCELLED" {
+            return Err(AppError::BadRequest(
+                "Cannot change steps of a closed batch".into(),
+            ));
+        }
         let existing = self
             .step_repository
             .find_by_id_and_batch(step_id, batch_id)
             .await?;
 
+        if let Some(status) = &req.status {
+            if status != &existing.status && !matches!((existing.status.as_str(), status.as_str()),
+                ("PLANNED", "IN_PROGRESS") | ("IN_PROGRESS", "COMPLETED")) {
+                return Err(AppError::BadRequest("Steps must move from Planned to In progress to Completed".into()));
+            }
+        }
+        if let Some(variables) = &mut req.variables {
+            crate::models::process_step::validate_variables(variables)?;
+        }
+        if req.name.as_ref().is_some_and(|n| n.trim().is_empty())
+            || req.step_order.is_some_and(|n| n < 1)
+        {
+            return Err(AppError::BadRequest(
+                "Step name and positive order are required".into(),
+            ));
+        }
         if let Some(new_order) = req.step_order {
             if new_order != existing.step_order
                 && self
@@ -125,23 +145,33 @@ impl StepService {
                 batch_id,
                 UpdateStepParams {
                     step_order: req.step_order.unwrap_or(existing.step_order),
+                    status: req.status.unwrap_or(existing.status),
                     name: req.name.as_deref().unwrap_or(&existing.name).to_string(),
                     description: req
                         .description
                         .as_deref()
                         .or(existing.description.as_deref())
                         .map(str::to_string),
-                    duration_hours: req.duration_hours.map(dec).or(existing.duration_hours),
-                    temperature: req.temperature.map(dec).or(existing.temperature),
+                    variables: match req.variables {
+                        Some(v) => serde_json::to_value(v)
+                            .map_err(|e| AppError::BadRequest(e.to_string()))?,
+                        None => existing.variables,
+                    },
                 },
             )
             .await
     }
 
     pub async fn delete(&self, batch_id: Uuid, step_id: Uuid, farm_id: Uuid) -> AppResult<()> {
-        self.batch_repository
+        let batch = self
+            .batch_repository
             .find_by_id_and_farm(batch_id, farm_id)
             .await?;
+        if batch.status == "COMPLETED" || batch.status == "CANCELLED" {
+            return Err(AppError::BadRequest(
+                "Cannot change steps of a closed batch".into(),
+            ));
+        }
 
         let rows = self.step_repository.delete(step_id, batch_id).await?;
         if rows == 0 {
