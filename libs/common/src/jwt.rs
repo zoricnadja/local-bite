@@ -6,8 +6,10 @@ use uuid::Uuid;
 pub struct Claims {
     pub sub: Uuid,
     pub email: String,
+    #[serde(deserialize_with = "crate::business_upgrade::role")]
     pub role: String,
-    pub farm_id: Option<Uuid>,
+    #[serde(alias = "farm_id")]
+    pub business_id: Option<Uuid>,
     pub exp: usize,
     pub iat: usize,
 }

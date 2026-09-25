@@ -23,7 +23,7 @@ trenutno gazdinstvo. Tip proizvodnje je uklonjen iz API-ja, obrazaca, filtera
 i porekla proizvoda. Istorijska kolona `process_type` i katalog proizvodnje
 ostaju samo radi očuvanja starih podataka i više se ne koriste u aplikaciji.
 
-GET/POST `/raw_materials/types` zahtevaju FARM_OWNER ili
+GET/POST `/raw_materials/types` zahtevaju BUSINESS_OWNER ili
 WORKER i važeće gazdinstvo. POST prima `{ "name": "..." }`; ponovljeno dodavanje
 istog naziva, bez obzira na velika/mala slova, vraća već postojeći tip.
 Forme i filteri učitavaju ove liste preko API-ja.

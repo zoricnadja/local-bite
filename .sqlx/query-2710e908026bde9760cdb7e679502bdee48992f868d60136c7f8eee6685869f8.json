@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT COUNT(*) FROM orders\n            WHERE  business_id    = $1\n              AND  is_deleted = FALSE\n              AND  ($2 = '' OR status ILIKE $2)\n              AND  ($3 = '' OR customer_name  ILIKE '%' || $3 || '%'\n                            OR customer_email ILIKE '%' || $3 || '%')\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "2710e908026bde9760cdb7e679502bdee48992f868d60136c7f8eee6685869f8"
+}

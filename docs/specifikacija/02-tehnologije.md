@@ -22,7 +22,7 @@ Projektna primena extractora:
 
 | Extractor / mehanizam | Primena |
 |---|---|
-| `Path<Uuid>` | Tipiziran ID proizvoda, porudžbine, serije ili farme |
+| `Path<Uuid>` | Tipiziran ID proizvoda, porudžbine, serije ili firme |
 | `Query<ListQuery>` | Paginacija, pretraga, tip/status, filter proizvođača |
 | `Json<Request>` | Deserijalizacija ulaznog JSON-a u DTO |
 | `Multipart` | Upload polja `image` |

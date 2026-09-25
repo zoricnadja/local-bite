@@ -20,7 +20,7 @@ pub fn product_routes() -> Router {
             "/",
             get(products_handler::list).post(products_handler::create),
         )
-        .route("/farm", get(products_handler::list_by_farm))
+        .route("/business", get(products_handler::list_by_business))
         // Single product CRUD
         .route(
             "/{id}",

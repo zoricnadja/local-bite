@@ -10,7 +10,7 @@
       },
       {
         "ordinal": 1,
-        "name": "farm_id",
+        "name": "business_id",
         "type_info": "Uuid"
       },
       {

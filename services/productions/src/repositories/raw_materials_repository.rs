@@ -37,8 +37,8 @@ impl RawMaterialsRepository {
         p: InsertRawMaterialParams,
     ) -> AppResult<BatchRawMaterial> {
         Ok(sqlx::query_as::<_, BatchRawMaterial>(
-            "INSERT INTO batch_raw_materials (id,batch_id,farm_id,raw_material_id,raw_material_name,material_type,quantity_used,unit,origin,supplier,received_date,expiry_date,harvest_date) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *")
-            .bind(p.id).bind(p.batch_id).bind(p.farm_id).bind(p.raw_material_id)
+            "INSERT INTO batch_raw_materials (id,batch_id,business_id,raw_material_id,raw_material_name,material_type,quantity_used,unit,origin,supplier,received_date,expiry_date,harvest_date) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *")
+            .bind(p.id).bind(p.batch_id).bind(p.business_id).bind(p.raw_material_id)
             .bind(p.raw_material_name).bind(p.material_type).bind(p.quantity_used)
             .bind(p.unit).bind(p.origin).bind(p.supplier).bind(p.received_date).bind(p.expiry_date).bind(p.harvest_date).fetch_one(&mut **tx).await?)
     }
@@ -47,11 +47,11 @@ impl RawMaterialsRepository {
         &self,
         batch_id: Uuid,
         raw_material_id: Uuid,
-        farm_id: Uuid,
+        business_id: Uuid,
     ) -> AppResult<u64> {
         Ok(sqlx::query!(
-            "DELETE FROM batch_raw_materials WHERE batch_id = $1 AND raw_material_id = $2 AND farm_id = $3",
-            batch_id, raw_material_id, farm_id
+            "DELETE FROM batch_raw_materials WHERE batch_id = $1 AND raw_material_id = $2 AND business_id = $3",
+            batch_id, raw_material_id, business_id
         )
             .execute(&self.pool)
             .await?

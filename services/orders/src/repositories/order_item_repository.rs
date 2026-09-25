@@ -73,7 +73,7 @@ impl OrderItemRepository {
 
     pub async fn top_products(
         &self,
-        farm_id: Uuid,
+        business_id: Uuid,
         limit: i64,
         from: &str,
         to: &str,
@@ -88,7 +88,7 @@ impl OrderItemRepository {
                 CAST(SUM(oi.subtotal) AS FLOAT8)  AS "total_revenue!"
             FROM   order_items oi
             JOIN   orders o ON o.id = oi.order_id
-            WHERE  o.farm_id    = $1
+            WHERE  o.business_id    = $1
               AND  o.is_deleted = FALSE
               AND  o.status     = 'DELIVERED'
               AND  ($2 = '' OR o.created_at::date >= $2::date)
@@ -97,7 +97,7 @@ impl OrderItemRepository {
             ORDER  BY SUM(oi.quantity) DESC
             LIMIT  $4
             "#,
-            farm_id,
+            business_id,
             from,
             to,
             limit

@@ -30,7 +30,7 @@ cover all write paths, including quantity adjustments and cascaded deletes.
 
 | Publisher | Projected entities |
 |---|---|
-| auth | farms, users (only ID, role and farm assignment) |
+| auth | businesses, users (only ID, role and business assignment) |
 | raw-materials | raw_materials |
 | productions | production_batches, process_steps, batch_raw_materials |
 | products | products |
@@ -52,7 +52,7 @@ not an event-sourced replacement for the domain database.
 - Unsupported/malformed envelopes go to `local_bite.read_models.dead.v1` for inspection.
 - Delivery is **at least once**; projection application is idempotent.
 
-The migration seeds events for existing data, so existing products and farms are
+The migration seeds events for existing data, so existing products and businesses are
 included. Password hashes, private user profiles and order contact information are
 excluded from event payloads. Public provenance contains only the product, producer
 name, production steps and materials; dashboard queries enforce JWT role and scope.
@@ -66,7 +66,7 @@ publishers have caught up). A newly created product can temporarily return HTTP 
 the scan page retries and offers a retry button.
 
 Product visibility and QR validity are still checked immediately by products-service.
-Only that service and read-models-service are needed for QR reads; farm, materials
+Only that service and read-models-service are needed for QR reads; business, materials
 and production services are not contacted on the query path.
 
 Inventory validation/deduction and batch ownership validation remain synchronous.
@@ -116,12 +116,12 @@ docker compose -f docker-compose.yml -f docker-compose.public.yml stop public-tu
 ## Regression checks
 
 ```powershell
-node scripts/verify-farm-trace.cjs
+node scripts/verify-business-trace.cjs
 node scripts/verify-role-stock.cjs
 node scripts/verify-cqrs.cjs
 ```
 
 The CQRS test briefly stops RabbitMQ and three source services, restores them, and
 removes its disposable business data. It checks rollback, duplicate and out-of-order
-deliveries, backlog recovery, customer/farm scope and reads without producer services.
+deliveries, backlog recovery, customer/business scope and reads without producer services.
 Run it against the local development stack only.

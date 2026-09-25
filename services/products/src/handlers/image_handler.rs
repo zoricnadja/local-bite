@@ -15,7 +15,7 @@ use uuid::Uuid;
 use crate::services::image_service::ImageService;
 use common::{
     errors::{AppError, AppResult},
-    middleware::{require_farm, require_role, AuthClaims},
+    middleware::{require_business, require_role, AuthClaims},
     response::ok,
 };
 
@@ -28,8 +28,8 @@ pub async fn upload_image(
     Extension(_image_service): Extension<Arc<ImageService>>,
     mut multipart: Multipart,
 ) -> AppResult<Response> {
-    require_role(&_claims, &["FARM_OWNER", "WORKER"])?;
-    let farm_id = require_farm(&_claims)?;
+    require_role(&_claims, &["BUSINESS_OWNER", "WORKER"])?;
+    let business_id = require_business(&_claims)?;
 
     let mut file_bytes: Option<Vec<u8>> = None;
     let mut mime_type = String::from("application/octet-stream");
@@ -59,7 +59,7 @@ pub async fn upload_image(
         file_bytes.ok_or_else(|| AppError::BadRequest("No 'image' field found in form".into()))?;
 
     let updated = _image_service
-        .upload(_id, farm_id, bytes, &mime_type)
+        .upload(_id, business_id, bytes, &mime_type)
         .await?;
     Ok(ok(updated))
 }

@@ -47,7 +47,7 @@ impl QrService {
             .map_err(AppError::Internal)?;
 
         self.product_repository
-            .set_qr_path_returning(id, product.farm_id, &new_path)
+            .set_qr_path_returning(id, product.business_id, &new_path)
             .await
     }
 }

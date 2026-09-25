@@ -17,7 +17,7 @@ impl UserRepository {
         sqlx::query!(
             r#"
             INSERT INTO users
-                (id, email, password_hash, role, farm_id,
+                (id, email, password_hash, role, business_id,
                  first_name, last_name, address,
                  phone, photo_url, date_of_birth,
                  created_at, updated_at)
@@ -31,7 +31,7 @@ impl UserRepository {
             u.email,
             u.password_hash,
             u.role.as_str(),
-            u.farm_id,
+            u.business_id,
             u.first_name,
             u.last_name,
             u.address,
@@ -75,7 +75,7 @@ impl UserRepository {
                 email          = $1,
                 password_hash  = $2,
                 role           = $3,
-                farm_id        = $4,
+                business_id        = $4,
                 first_name     = $5,
                 last_name      = $6,
                 address        = $7,
@@ -89,7 +89,7 @@ impl UserRepository {
             u.email,
             u.password_hash,
             u.role.as_str(),
-            u.farm_id,
+            u.business_id,
             u.first_name,
             u.last_name,
             u.address,

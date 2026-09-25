@@ -10,7 +10,7 @@ pub struct User {
     #[serde(skip_serializing)]
     pub password_hash: String,
     pub role: Role,
-    pub farm_id: Option<Uuid>,
+    pub business_id: Option<Uuid>,
 
     // Required profile fields
     pub first_name: String,
@@ -31,7 +31,7 @@ pub struct UserRow {
     pub id: Uuid,
     pub email: String,
     pub password_hash: String,
-    pub farm_id: Option<Uuid>,
+    pub business_id: Option<Uuid>,
     pub role: String,
 
     pub first_name: String,
@@ -52,7 +52,7 @@ impl From<UserRow> for User {
             id: row.id,
             email: row.email,
             password_hash: row.password_hash,
-            farm_id: row.farm_id,
+            business_id: row.business_id,
             role: row.role.parse().unwrap_or(Role::Customer),
             first_name: row.first_name,
             last_name: row.last_name,

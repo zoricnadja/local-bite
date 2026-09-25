@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE production_batches SET is_deleted = TRUE WHERE id = $1 AND business_id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f543040a1a6cedd44f52cbcb31ab3260bbda738628d008caf09b24d6e3d03e66"
+}

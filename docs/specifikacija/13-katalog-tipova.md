@@ -6,8 +6,8 @@ Polja su izdvojena iz trenutnog izvornog koda. Katalog uključuje persistence mo
 
 ## Dopune recovery/reservation iteracije
 
-- `service_auth.rs`: `token(role, operation, farm)` izdaje tehnički JWT od 60 sekundi; `require` proverava role i subject.
-- `checkout.rs::Line`: trajni snapshot proizvoda, farme, naziva, tipa, jedinice, količine i cene; decimale su stringovi.
+- `service_auth.rs`: `token(role, operation, business)` izdaje tehnički JWT od 60 sekundi; `require` proverava role i subject.
+- `checkout.rs::Line`: trajni snapshot proizvoda, firme, naziva, tipa, jedinice, količine i cene; decimale su stringovi.
 - `reservations.rs::Item`: interni `product_id`, `quantity`, `unit_price`; stringovi omogućavaju tačnu replay jednakost.
 - `public_provenance.rs`: `PublicProduct`, `PublicMaterial`, `PublicStep`, `PublicBatch` i `PublicProvenance` čine javni allowlist.
 
@@ -40,7 +40,7 @@ Izvor: [libs/common/src/jwt.rs](../../libs/common/src/jwt.rs)
 | sub | `Uuid` | Ne |
 | email | `String` | Ne |
 | role | `String` | Ne |
-| farm_id | `Option<Uuid>` | Da |
+| business_id | `Option<Uuid>` | Da |
 | exp | `usize` | Ne |
 | iat | `usize` | Ne |
 
@@ -52,7 +52,7 @@ Izvor: [libs/common/src/models.rs](../../libs/common/src/models.rs)
 
 ```rust
 SystemAdmin,
-    FarmOwner,
+    BusinessOwner,
     Worker,
     Customer,
 ```
@@ -70,11 +70,11 @@ Izvor: [libs/common/src/paginated_response.rs](../../libs/common/src/paginated_r
 | page | `i64` | Ne |
 | limit | `i64` | Ne |
 
-## services/auth/src/dtos/create_farm_request.rs
+## services/auth/src/dtos/create_business_request.rs
 
-Izvor: [services/auth/src/dtos/create_farm_request.rs](../../services/auth/src/dtos/create_farm_request.rs)
+Izvor: [services/auth/src/dtos/create_business_request.rs](../../services/auth/src/dtos/create_business_request.rs)
 
-### CreateFarmRequest (struct)
+### CreateBusinessRequest (struct)
 
 | Polje | Rust tip | Opciono |
 |---|---|---|
@@ -84,15 +84,15 @@ Izvor: [services/auth/src/dtos/create_farm_request.rs](../../services/auth/src/d
 | description | `Option<String>` | Da |
 | website | `Option<String>` | Da |
 
-## services/auth/src/dtos/create_farm_response.rs
+## services/auth/src/dtos/create_business_response.rs
 
-Izvor: [services/auth/src/dtos/create_farm_response.rs](../../services/auth/src/dtos/create_farm_response.rs)
+Izvor: [services/auth/src/dtos/create_business_response.rs](../../services/auth/src/dtos/create_business_response.rs)
 
-### CreateFarmResult (struct)
+### CreateBusinessResult (struct)
 
 | Polje | Rust tip | Opciono |
 |---|---|---|
-| farm | `Farm` | Ne |
+| business | `Business` | Ne |
 | token | `String` | Ne |
 
 ## services/auth/src/dtos/login_request.rs
@@ -134,11 +134,11 @@ Izvor: [services/auth/src/dtos/register_request.rs](../../services/auth/src/dtos
 | photo_url | `Option<String>` | Da |
 | date_of_birth | `Option<NaiveDate>` | Da |
 
-## services/auth/src/dtos/update_farm_request.rs
+## services/auth/src/dtos/update_business_request.rs
 
-Izvor: [services/auth/src/dtos/update_farm_request.rs](../../services/auth/src/dtos/update_farm_request.rs)
+Izvor: [services/auth/src/dtos/update_business_request.rs](../../services/auth/src/dtos/update_business_request.rs)
 
-### UpdateFarmRequest (struct)
+### UpdateBusinessRequest (struct)
 
 | Polje | Rust tip | Opciono |
 |---|---|---|
@@ -177,13 +177,13 @@ Izvor: [services/auth/src/dtos/worker_dto.rs](../../services/auth/src/dtos/worke
 | id | `Uuid` | Ne |
 | email | `String` | Ne |
 | role | `String` | Ne |
-| farm_id | `Uuid` | Ne |
+| business_id | `Uuid` | Ne |
 
-## services/auth/src/models/farms.rs
+## services/auth/src/models/businesses.rs
 
-Izvor: [services/auth/src/models/farms.rs](../../services/auth/src/models/farms.rs)
+Izvor: [services/auth/src/models/businesses.rs](../../services/auth/src/models/businesses.rs)
 
-### Farm (struct)
+### Business (struct)
 
 | Polje | Rust tip | Opciono |
 |---|---|---|
@@ -209,7 +209,7 @@ Izvor: [services/auth/src/models/user.rs](../../services/auth/src/models/user.rs
 | email | `String` | Ne |
 | password_hash | `String` | Ne |
 | role | `Role` | Ne |
-| farm_id | `Option<Uuid>` | Da |
+| business_id | `Option<Uuid>` | Da |
 | first_name | `String` | Ne |
 | last_name | `String` | Ne |
 | address | `String` | Ne |
@@ -226,7 +226,7 @@ Izvor: [services/auth/src/models/user.rs](../../services/auth/src/models/user.rs
 | id | `Uuid` | Ne |
 | email | `String` | Ne |
 | password_hash | `String` | Ne |
-| farm_id | `Option<Uuid>` | Da |
+| business_id | `Option<Uuid>` | Da |
 | role | `String` | Ne |
 | first_name | `String` | Ne |
 | last_name | `String` | Ne |
@@ -299,7 +299,7 @@ Izvor: [services/orders/src/dtos/order/create_order_request.rs](../../services/o
 | customer_email | `Option<String>` | Da |
 | notes | `Option<String>` | Da |
 | items | `Vec<OrderItemRequest>` | Ne |
-| farm_id | `Option<Uuid>` | Da |
+| business_id | `Option<Uuid>` | Da |
 
 ## services/orders/src/dtos/order/list_orders_query.rs
 
@@ -309,7 +309,7 @@ Izvor: [services/orders/src/dtos/order/list_orders_query.rs](../../services/orde
 
 | Polje | Rust tip | Opciono |
 |---|---|---|
-| farm_id | `Option<Uuid>` | Da |
+| business_id | `Option<Uuid>` | Da |
 | page | `Option<i64>` | Da |
 | limit | `Option<i64>` | Da |
 | status | `Option<String>` | Da |
@@ -324,7 +324,7 @@ Izvor: [services/orders/src/dtos/order/order_response.rs](../../services/orders/
 | Polje | Rust tip | Opciono |
 |---|---|---|
 | id | `Uuid` | Ne |
-| farm_id | `Uuid` | Ne |
+| business_id | `Uuid` | Ne |
 | customer_id | `Option<Uuid>` | Da |
 | customer_name | `Option<String>` | Da |
 | customer_email | `Option<String>` | Da |
@@ -359,7 +359,7 @@ Izvor: [services/orders/src/dtos/order_item/new_order_item_dto.rs](../../service
 | unit_price | `BigDecimal` | Ne |
 | quantity | `BigDecimal` | Ne |
 | unit | `String` | Ne |
-| farm_id | `Uuid` | Ne |
+| business_id | `Uuid` | Ne |
 
 ## services/orders/src/dtos/order_item/order_item_request.rs
 
@@ -404,7 +404,7 @@ Izvor: [services/orders/src/dtos/product/product_api_data.rs](../../services/ord
 | quantity | `Decimal` | Ne |
 | unit | `String` | Ne |
 | is_active | `bool` | Ne |
-| farm_id | `Option<Uuid>` | Da |
+| business_id | `Option<Uuid>` | Da |
 
 ## services/orders/src/dtos/product/product_api_response.rs
 
@@ -425,7 +425,7 @@ Izvor: [services/orders/src/models/order.rs](../../services/orders/src/models/or
 | Polje | Rust tip | Opciono |
 |---|---|---|
 | id | `Uuid` | Ne |
-| farm_id | `Uuid` | Ne |
+| business_id | `Uuid` | Ne |
 | customer_id | `Option<Uuid>` | Da |
 | customer_name | `Option<String>` | Da |
 | customer_email | `Option<String>` | Da |
@@ -521,7 +521,7 @@ Izvor: [services/productions/src/dtos/production_batch_response.rs](../../servic
 | Polje | Rust tip | Opciono |
 |---|---|---|
 | id | `Uuid` | Ne |
-| farm_id | `Uuid` | Ne |
+| business_id | `Uuid` | Ne |
 | name | `String` | Ne |
 | process_type | `String` | Ne |
 | start_date | `Option<String>` | Da |
@@ -637,7 +637,7 @@ Izvor: [services/productions/src/models/batch_raw_material.rs](../../services/pr
 |---|---|---|
 | id | `Uuid` | Ne |
 | batch_id | `Uuid` | Ne |
-| farm_id | `Uuid` | Ne |
+| business_id | `Uuid` | Ne |
 | raw_material_id | `Uuid` | Ne |
 | raw_material_name | `String` | Ne |
 | material_type | `String` | Ne |
@@ -658,7 +658,7 @@ Izvor: [services/productions/src/models/insert_production_params.rs](../../servi
 | Polje | Rust tip | Opciono |
 |---|---|---|
 | id | `Uuid` | Ne |
-| farm_id | `Uuid` | Ne |
+| business_id | `Uuid` | Ne |
 | name | `String` | Ne |
 | process_type | `String` | Ne |
 | start_date | `Option<chrono::NaiveDate>` | Da |
@@ -675,7 +675,7 @@ Izvor: [services/productions/src/models/insert_raw_material_params.rs](../../ser
 |---|---|---|
 | id | `Uuid` | Ne |
 | batch_id | `Uuid` | Ne |
-| farm_id | `Uuid` | Ne |
+| business_id | `Uuid` | Ne |
 | raw_material_id | `Uuid` | Ne |
 | raw_material_name | `String` | Ne |
 | material_type | `String` | Ne |
@@ -697,7 +697,7 @@ Izvor: [services/productions/src/models/insert_step_params.rs](../../services/pr
 |---|---|---|
 | id | `Uuid` | Ne |
 | batch_id | `Uuid` | Ne |
-| farm_id | `Uuid` | Ne |
+| business_id | `Uuid` | Ne |
 | step_order | `i32` | Ne |
 | name | `String` | Ne |
 | description | `Option<String>` | Da |
@@ -714,7 +714,7 @@ Izvor: [services/productions/src/models/process_step.rs](../../services/producti
 |---|---|---|
 | id | `Uuid` | Ne |
 | batch_id | `Uuid` | Ne |
-| farm_id | `Uuid` | Ne |
+| business_id | `Uuid` | Ne |
 | step_order | `i32` | Ne |
 | name | `String` | Ne |
 | description | `Option<String>` | Da |
@@ -732,7 +732,7 @@ Izvor: [services/productions/src/models/production_batch.rs](../../services/prod
 | Polje | Rust tip | Opciono |
 |---|---|---|
 | id | `Uuid` | Ne |
-| farm_id | `Uuid` | Ne |
+| business_id | `Uuid` | Ne |
 | name | `String` | Ne |
 | process_type | `String` | Ne |
 | start_date | `Option<NaiveDate>` | Da |
@@ -800,13 +800,13 @@ Izvor: [services/productions/src/models/update_step_params.rs](../../services/pr
 
 Izvor: [services/products/src/dtos/clients.rs](../../services/products/src/dtos/clients.rs)
 
-### FarmResponse (struct)
+### BusinessResponse (struct)
 
 | Polje | Rust tip | Opciono |
 |---|---|---|
-| data | `FarmData` | Ne |
+| data | `BusinessData` | Ne |
 
-### FarmData (struct)
+### BusinessData (struct)
 
 | Polje | Rust tip | Opciono |
 |---|---|---|
@@ -883,7 +883,7 @@ Izvor: [services/products/src/dtos/provenance_response.rs](../../services/produc
 | Polje | Rust tip | Opciono |
 |---|---|---|
 | product | `Product` | Ne |
-| farm_name | `Option<String>` | Da |
+| business_name | `Option<String>` | Da |
 | batch | `Option<BatchRef>` | Da |
 
 ## services/products/src/dtos/update_product_request.rs
@@ -945,7 +945,7 @@ Izvor: [services/products/src/models/product.rs](../../services/products/src/mod
 | Polje | Rust tip | Opciono |
 |---|---|---|
 | id | `Uuid` | Ne |
-| farm_id | `Uuid` | Ne |
+| business_id | `Uuid` | Ne |
 | name | `String` | Ne |
 | product_type | `String` | Ne |
 | description | `Option<String>` | Da |
@@ -974,7 +974,7 @@ Izvor: [services/products/src/models/query.rs](../../services/products/src/model
 | limit | `Option<i64>` | Da |
 | product_type | `Option<String>` | Da |
 | search | `Option<String>` | Da |
-| farm_id | `Option<uuid::Uuid>` | Da |
+| business_id | `Option<uuid::Uuid>` | Da |
 | is_active | `Option<bool>` | Da |
 | active_only | `Option<bool>` | Da |
 
@@ -1101,7 +1101,7 @@ Izvor: [services/raw-materials/src/models/raw_material.rs](../../services/raw-ma
 | Polje | Rust tip | Opciono |
 |---|---|---|
 | id | `Uuid` | Ne |
-| farm_id | `Uuid` | Ne |
+| business_id | `Uuid` | Ne |
 | name | `String` | Ne |
 | material_type | `String` | Ne |
 | quantity | `BigDecimal` | Ne |

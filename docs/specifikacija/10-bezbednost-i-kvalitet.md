@@ -4,9 +4,9 @@
 
 ## Implementirane zaštite
 
-- Javna registracija dozvoljava samo `CUSTOMER` i `FARM_OWNER`; radnika kreira vlasnik, a administrator se ne registruje javno.
-- Lozinke se čuvaju kao Argon2 hash. Korisnički JWT važi jedan sat. Tehnički `TRACEABILITY`, `ORDER_STOCK` i `MATERIAL_STOCK` tokeni važe 60 sekundi i vezani su za operaciju/resurs i farmu.
-- Detalj porudžbine proverava kupca ili farmu; detalj proizvoda, poreklo, slika i QR proveravaju ulogu, vlasništvo i efektivnu aktivnost.
+- Javna registracija dozvoljava samo `CUSTOMER` i `BUSINESS_OWNER`; radnika kreira vlasnik, a administrator se ne registruje javno.
+- Lozinke se čuvaju kao Argon2 hash. Korisnički JWT važi jedan sat. Tehnički `TRACEABILITY`, `ORDER_STOCK` i `MATERIAL_STOCK` tokeni važe 60 sekundi i vezani su za operaciju/resurs i firmu.
+- Detalj porudžbine proverava kupca ili firmu; detalj proizvoda, poreklo, slika i QR proveravaju ulogu, vlasništvo i efektivnu aktivnost.
 - Javni decrement je uklonjen. Zaliha se menja samo internom atomarnom rezervacijom sa idempotency ključem.
 - Završene, otkazane i obrisane serije SQL trigger-i štite od izmene koraka i utrošenih sirovina.
 - `PublicProvenance` je allowlist DTO bez internih ID-eva, cene, stanja, dobavljača, putanja i internih datuma.
@@ -15,7 +15,7 @@
 
 ## Pouzdanost zalihe i distribuiranih tokova
 
-`checkout_jobs` beleži nameru pre rezervacije. Products u jednoj transakciji zaključava operaciju, proverava sve proizvode, cenu, farmu, aktivnost, rok i količinu, pa umanjuje stanje. Orders zatim lokalno upisuje porudžbine, stavke, veze rezervacije i sačuvani odgovor. Isti `Idempotency-Key`, kupac i telo vraćaju isti rezultat; drugi sadržaj daje 409.
+`checkout_jobs` beleži nameru pre rezervacije. Products u jednoj transakciji zaključava operaciju, proverava sve proizvode, cenu, firmu, aktivnost, rok i količinu, pa umanjuje stanje. Orders zatim lokalno upisuje porudžbine, stavke, veze rezervacije i sačuvani odgovor. Isti `Idempotency-Key`, kupac i telo vraćaju isti rezultat; drugi sadržaj daje 409.
 
 Otkazivanje i brisanje dozvoljene porudžbine transakciono upisuju `stock_release_jobs`. Recovery ponavlja vraćanje, a Products `released` stanje čini operaciju idempotentnom. Izmena cene ne prepisuje količinu automatski nastalog proizvoda.
 
@@ -33,7 +33,7 @@ Outbox, publisher confirms, projection receipts i entity sequence štite od gubi
 - Token je u `localStorage`, pa XSS ostaje ključna browser pretnja. CSP i formalni penetration test nisu urađeni.
 - Svi servisi dele simetrični `JWT_SECRET`; zasebni issuer/ključevi bi smanjili blast radius.
 - CORS je permissive na domenskim servisima. Osnovni Compose mapira razvojne DB i servisne portove na host.
-- Brisanje farme je transakciono unutar auth baze i odvaja članove, ali ne orkestrira brisanje podataka u drugim servisima.
+- Brisanje firme je transakciono unutar auth baze i odvaja članove, ali ne orkestrira brisanje podataka u drugim servisima.
 - Nema plaćanja, fiskalizacije ni kurirske integracije.
 
 ## Preostali tehnički dug

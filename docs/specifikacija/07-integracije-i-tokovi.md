@@ -6,16 +6,16 @@
 
 | Pozivalac | Odredište | Razlog | Autentifikacija |
 |---|---|---|---|
-| Productions | Raw Materials GET | Postojanje, farma, jedinica i snapshot sirovine | Prosleđen korisnički JWT |
-| Productions | Raw Materials consumption/release | Umanjenje ili kompenzacija ulazne zalihe | `MATERIAL_STOCK`, farm scope |
+| Productions | Raw Materials GET | Postojanje, firma, jedinica i snapshot sirovine | Prosleđen korisnički JWT |
+| Productions | Raw Materials consumption/release | Umanjenje ili kompenzacija ulazne zalihe | `MATERIAL_STOCK`, business scope |
 | Products | Productions trace | Provera završene serije pre aktiviranja | T token, sub=batch ID |
 | Products | Read Models provenance | Objedinjeni podaci porekla | T token, sub=product ID |
 | Orders | Auth `/me` | Pouzdano ime i email prijavljenog naloga | Kupčev JWT |
-| Orders | Products GET | Cena, raspoloživost, farma i ime proizvoda | Kupčev JWT |
-| Orders | Products reservation/release | Atomska rezervacija ili povraćaj prodajne zalihe | `ORDER_STOCK`, operation/farm scope |
+| Orders | Products GET | Cena, raspoloživost, firma i ime proizvoda | Kupčev JWT |
+| Orders | Products reservation/release | Atomska rezervacija ili povraćaj prodajne zalihe | `ORDER_STOCK`, operation/business scope |
 | Frontend | Auth `/me` | Usklađivanje korisničkog profila i novog tokena | Sesijski JWT |
 
-Helper `fetch_farm_name` i auth trace endpoint postoje, ali glavni `ProvenanceService.build` koristi read-models. Ne treba crtati direktan auth→provenance fan-out kao aktivni put javnog skeniranja.
+Helper `fetch_business_name` i auth trace endpoint postoje, ali glavni `ProvenanceService.build` koristi read-models. Ne treba crtati direktan auth→provenance fan-out kao aktivni put javnog skeniranja.
 
 ## 2. Format integracionog događaja
 
@@ -35,7 +35,7 @@ Helper `fetch_farm_name` i auth trace endpoint postoje, ali glavni `ProvenanceSe
 
 | Source | Entity tipovi |
 |---|---|
-| auth | farms, users |
+| auth | businesses, users |
 | raw-materials | raw_materials |
 | productions | production_batches, process_steps, batch_raw_materials |
 | products | products |
@@ -133,7 +133,7 @@ Ako Orders padne posle udaljenog commit-a, `checkout_jobs` ostaje PENDING. Recov
 
 QR API kombinuje aktuelni proizvod iz write baze sa projektovanim podacima drugih domena. Ako se batch_id proizvoda u projekciji razlikuje od aktuelnog, vraća 409. Read model ne kontaktira izvorne servise pri čitanju, pa ranije projektovan lanac može da se čita i tokom njihovog prekida.
 
-Projekcije različitih entiteta stižu odvojeno. Nema globalnog atomskog snapshot-a preko svih publisher-a: moguće je da je proizvod stigao, a farma ili neki korak još nije. `asOf` ne rešava ovu semantičku kompletnost.
+Projekcije različitih entiteta stižu odvojeno. Nema globalnog atomskog snapshot-a preko svih publisher-a: moguće je da je proizvod stigao, a firma ili neki korak još nije. `asOf` ne rešava ovu semantičku kompletnost.
 
 ## 8. Matrica kvarova
 

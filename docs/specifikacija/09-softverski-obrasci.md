@@ -12,7 +12,7 @@ Obrasci su razdvojeni na arhitektonske, integracione i obrasce organizacije koda
 | Database per Service | Aktivno | Docker Compose i servisne migracije |
 | Layered Architecture | Aktivno, sa izuzecima | handlers → services → repositories |
 | Repository | Aktivno | UserRepository, BatchRepository, ProductRepository, OrderRepository |
-| Service Layer | Aktivno | BatchService, OrderService, FarmService |
+| Service Layer | Aktivno | BatchService, OrderService, BusinessService |
 | Dependency Injection / composition root | Aktivno | main.rs, Arc/Extension; Angular providers/inject |
 | DTO / Mapper | Aktivno | dtos, map_order_response, assemble_detail |
 | API Gateway / Reverse Proxy | Aktivno | nginx/nginx.conf |
@@ -30,7 +30,7 @@ Obrasci su razdvojeni na arhitektonske, integracione i obrasce organizacije koda
 
 ## 2. Repository i Service Layer
 
-Repository skriva SQL detalje iza metoda sa domenskim imenima, npr. `find_by_id_and_farm`, `insert_in` i `soft_delete`. Service Layer povezuje više repository poziva i proverava poslovna pravila: OrderService grupiše proizvode po gazdinstvu, a BatchService upravlja statusnim prelazom.
+Repository skriva SQL detalje iza metoda sa domenskim imenima, npr. `find_by_id_and_business`, `insert_in` i `soft_delete`. Service Layer povezuje više repository poziva i proverava poslovna pravila: OrderService grupiše proizvode po gazdinstvu, a BatchService upravlja statusnim prelazom.
 
 Dobit je manje SQL-a u HTTP handlerima i jedno mesto za pravilo. Ograničenje: repozitorijumi su uglavnom konkretni struct-ovi bez trait apstrakcije, a service-i zavise od konkretne implementacije. Zbog toga nije automatski obezbeđeno jednostavno mock-ovanje svega niti strogo dependency inversion pravilo. Direktan SQL u consumption handleru, queries i output consumer-u predstavlja izuzetak od uobičajenih slojeva.
 

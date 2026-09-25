@@ -1,0 +1,76 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT id, batch_id, business_id, raw_material_id, raw_material_name,\n                   material_type, quantity_used, unit, origin, supplier\n            FROM   batch_raw_materials\n            WHERE  batch_id = $1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "batch_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "business_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 3,
+        "name": "raw_material_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 4,
+        "name": "raw_material_name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 5,
+        "name": "material_type",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 6,
+        "name": "quantity_used",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 7,
+        "name": "unit",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 8,
+        "name": "origin",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 9,
+        "name": "supplier",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "8cf043d38746df73e5df24431c568f5ae15c7a5486df2ef0cb2721c1183959cf"
+}

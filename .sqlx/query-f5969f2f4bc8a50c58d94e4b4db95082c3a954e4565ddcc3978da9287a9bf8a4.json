@@ -1,0 +1,25 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT COUNT(*) FROM products\n            WHERE  business_id = $1 AND is_deleted = FALSE\n              AND  ($2 = '' OR product_type ILIKE $2)\n              AND  ($3 = '' OR name ILIKE '%' || $3 || '%')\n              AND  (NOT $4    OR is_active = TRUE)\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Text",
+        "Bool"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "f5969f2f4bc8a50c58d94e4b4db95082c3a954e4565ddcc3978da9287a9bf8a4"
+}

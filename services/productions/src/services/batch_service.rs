@@ -52,10 +52,10 @@ impl BatchService {
 
     pub async fn list(
         &self,
-        farm_id: Uuid,
+        business_id: Uuid,
         q: &ListQuery,
     ) -> AppResult<PaginatedResponse<ProductionBatch>> {
-        let (items, total) = self.batch_repository.list(farm_id, q).await?;
+        let (items, total) = self.batch_repository.list(business_id, q).await?;
         Ok(PaginatedResponse {
             data: items,
             total,
@@ -68,7 +68,7 @@ impl BatchService {
 
     pub async fn create(
         &self,
-        farm_id: Uuid,
+        business_id: Uuid,
         req: CreateProductionBatchRequest,
         token: &str,
     ) -> AppResult<ProductionBatchResponse> {
@@ -125,7 +125,7 @@ impl BatchService {
                 &mut tx,
                 InsertProductionParams {
                     id: batch_id,
-                    farm_id,
+                    business_id,
                     name: req.name.trim().to_string(),
                     start_date: req.start_date,
                     end_date: req.end_date,
@@ -138,7 +138,7 @@ impl BatchService {
 
         for (input, snap) in &material_snapshots {
             let operation_id = Uuid::new_v4();
-            crate::material_recovery::journal(&self.batch_repository.pool, &mut tx, operation_id, farm_id).await?;
+            crate::material_recovery::journal(&self.batch_repository.pool, &mut tx, operation_id, business_id).await?;
             operation_ids.push(operation_id);
             operations.push(serde_json::json!({ "operation_id": operation_id, "raw_material_id": snap.id, "quantity": input.quantity_used, "unit": input.unit.trim() }));
             self.materials_repository
@@ -147,7 +147,7 @@ impl BatchService {
                     InsertRawMaterialParams {
                         id: operation_id,
                         batch_id,
-                        farm_id,
+                        business_id,
                         raw_material_id: snap.id,
                         raw_material_name: snap.name.clone(),
                         material_type: snap.material_type.clone(),
@@ -186,10 +186,10 @@ impl BatchService {
 
     // ── Get one ───────────────────────────────────────────────────────────────────
 
-    pub async fn get_one(&self, id: Uuid, farm_id: Uuid) -> AppResult<ProductionBatchResponse> {
+    pub async fn get_one(&self, id: Uuid, business_id: Uuid) -> AppResult<ProductionBatchResponse> {
         let batch = self
             .batch_repository
-            .find_by_id_and_farm(id, farm_id)
+            .find_by_id_and_business(id, business_id)
             .await?;
         self.assemble_detail(batch).await
     }
@@ -199,12 +199,12 @@ impl BatchService {
     pub async fn update(
         &self,
         id: Uuid,
-        farm_id: Uuid,
+        business_id: Uuid,
         req: UpdateProductionBatchRequest,
     ) -> AppResult<ProductionBatchResponse> {
         let existing = self
             .batch_repository
-            .find_by_id_and_farm(id, farm_id)
+            .find_by_id_and_business(id, business_id)
             .await?;
 
         if existing.status == "COMPLETED" {
@@ -233,7 +233,7 @@ impl BatchService {
             if row["name"].as_str().is_none_or(|v|v.trim().is_empty())
                 || row["quantity"].as_f64().is_none_or(|v|!v.is_finite() || v<=0.0)
                 || row["price"].as_f64().is_none_or(|v|!v.is_finite() || v<0.0)
-                || row["product_type"].as_str().is_none_or(|v|!["meat","dairy","vegetable","fruit","cheese","sausage","honey","other"].contains(&v))
+                || row["product_type"].as_str().is_none_or(|v|!common::product_types::is_supported_product_type(v))
                 || row["unit"].as_str().is_none_or(|v|!["kg","g","l","ml","pcs"].contains(&v)) {
                 return Err(AppError::BadRequest("Each product requires a name, type, positive quantity, unit and non-negative price".into()));
             }
@@ -265,7 +265,7 @@ impl BatchService {
             .batch_repository
             .update(
                 id,
-                farm_id,
+                business_id,
                 UpdateProductionParams {
                     outputs,
                     output_name: req.output_name, output_type: req.output_type, output_unit: req.output_unit, output_quantity: req.output_quantity, output_expiry_date: req.output_expiry_date,
@@ -292,10 +292,10 @@ impl BatchService {
 
     // ── Delete ────────────────────────────────────────────────────────────────────
 
-    pub async fn delete(&self, id: Uuid, farm_id: Uuid) -> AppResult<()> {
+    pub async fn delete(&self, id: Uuid, business_id: Uuid) -> AppResult<()> {
         let batch = self
             .batch_repository
-            .find_by_id_and_farm(id, farm_id)
+            .find_by_id_and_business(id, business_id)
             .await?;
 
         if batch.status == "IN_PROGRESS" || batch.status == "COMPLETED" {
@@ -304,7 +304,7 @@ impl BatchService {
             ));
         }
 
-        let rows = self.batch_repository.soft_delete(id, farm_id).await?;
+        let rows = self.batch_repository.soft_delete(id, business_id).await?;
         if rows == 0 {
             return Err(AppError::NotFound(format!("Batch {} not found", id)));
         }
@@ -324,7 +324,7 @@ impl BatchService {
 
         Ok(ProductionBatchResponse {
             id: batch.id,
-            farm_id: batch.farm_id,
+            business_id: batch.business_id,
             name: batch.name,
             start_date: batch.start_date.map(|d| d.to_string()),
             end_date: batch.end_date.map(|d| d.to_string()),

@@ -6,7 +6,7 @@ use uuid::Uuid;
 #[derive(Debug, sqlx::FromRow, Serialize)]
 pub struct RawMaterial {
     pub id: Uuid,
-    pub farm_id: Uuid,
+    pub business_id: Uuid,
     pub name: String,
     pub material_type: String,
     pub quantity: BigDecimal,

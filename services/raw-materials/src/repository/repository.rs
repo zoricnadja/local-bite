@@ -18,7 +18,7 @@ impl RawMaterialRepository {
 
     pub async fn find_all(
         &self,
-        farm_id: Uuid,
+        business_id: Uuid,
         q: &ListQuery,
     ) -> AppResult<(Vec<RawMaterial>, i64)> {
         let offset = q.offset();
@@ -29,18 +29,18 @@ impl RawMaterialRepository {
         let items = sqlx::query_as!(
             RawMaterial,
             r#"
-            SELECT id, farm_id, name, material_type, quantity, unit,
+            SELECT id, business_id, name, material_type, quantity, unit,
                    supplier, origin, received_date, harvest_date, expiry_date, notes,
                    low_stock_threshold, is_deleted, created_at, updated_at
             FROM   raw_materials
-            WHERE  farm_id    = $1
+            WHERE  business_id    = $1
               AND  is_deleted = FALSE
               AND  ($2 = '' OR material_type ILIKE $2)
               AND  ($3 = '' OR name ILIKE '%' || $3 || '%')
             ORDER  BY created_at DESC
             LIMIT  $4 OFFSET $5
             "#,
-            farm_id,
+            business_id,
             type_filter,
             search_filter,
             limit,
@@ -52,11 +52,11 @@ impl RawMaterialRepository {
         let total: i64 = sqlx::query_scalar!(
             r#"
             SELECT COUNT(*) FROM raw_materials
-            WHERE  farm_id = $1 AND is_deleted = FALSE
+            WHERE  business_id = $1 AND is_deleted = FALSE
               AND  ($2 = '' OR material_type ILIKE $2)
               AND  ($3 = '' OR name ILIKE '%' || $3 || '%')
             "#,
-            farm_id,
+            business_id,
             type_filter,
             search_filter
         )
@@ -67,18 +67,18 @@ impl RawMaterialRepository {
         Ok((items, total))
     }
 
-    pub async fn find_by_id(&self, id: Uuid, farm_id: Uuid) -> AppResult<RawMaterial> {
+    pub async fn find_by_id(&self, id: Uuid, business_id: Uuid) -> AppResult<RawMaterial> {
         sqlx::query_as!(
             RawMaterial,
             r#"
-            SELECT id, farm_id, name, material_type, quantity, unit,
+            SELECT id, business_id, name, material_type, quantity, unit,
                    supplier, origin, received_date, harvest_date, expiry_date, notes,
                    low_stock_threshold, is_deleted, created_at, updated_at
             FROM   raw_materials
-            WHERE  id = $1 AND farm_id = $2 AND is_deleted = FALSE
+            WHERE  id = $1 AND business_id = $2 AND is_deleted = FALSE
             "#,
             id,
-            farm_id
+            business_id
         )
         .fetch_optional(&self.pool)
         .await?
@@ -88,7 +88,7 @@ impl RawMaterialRepository {
     pub async fn insert(
         &self,
         id: Uuid,
-        farm_id: Uuid,
+        business_id: Uuid,
         name: &str,
         material_type: &str,
         quantity: BigDecimal,
@@ -105,15 +105,15 @@ impl RawMaterialRepository {
             RawMaterial,
             r#"
             INSERT INTO raw_materials
-                (id, farm_id, name, material_type, quantity, unit,
+                (id, business_id, name, material_type, quantity, unit,
                  supplier, origin, received_date, harvest_date, expiry_date, notes, low_stock_threshold)
             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$13,$9,$10,$11,$12)
-            RETURNING id, farm_id, name, material_type, quantity, unit,
+            RETURNING id, business_id, name, material_type, quantity, unit,
                       supplier, origin, received_date, harvest_date, expiry_date, notes,
                       low_stock_threshold, is_deleted, created_at, updated_at
             "#,
             id,
-            farm_id,
+            business_id,
             name,
             material_type,
             quantity,
@@ -135,7 +135,7 @@ impl RawMaterialRepository {
     pub async fn update(
         &self,
         id: Uuid,
-        farm_id: Uuid,
+        business_id: Uuid,
         name: &str,
         material_type: &str,
         quantity: BigDecimal,
@@ -163,8 +163,8 @@ impl RawMaterialRepository {
                 notes               = $9,
                 low_stock_threshold = $10,
                 received_date = $13
-            WHERE id = $11 AND farm_id = $12 AND is_deleted = FALSE
-            RETURNING id, farm_id, name, material_type, quantity, unit,
+            WHERE id = $11 AND business_id = $12 AND is_deleted = FALSE
+            RETURNING id, business_id, name, material_type, quantity, unit,
                       supplier, origin, received_date, harvest_date, expiry_date, notes,
                       low_stock_threshold, is_deleted, created_at, updated_at
             "#,
@@ -179,7 +179,7 @@ impl RawMaterialRepository {
             notes,
             low_stock_threshold,
             id,
-            farm_id,
+            business_id,
             received_date
         )
         .fetch_one(&self.pool)
@@ -188,10 +188,10 @@ impl RawMaterialRepository {
         Ok(updated)
     }
 
-    pub async fn soft_delete(&self, id: Uuid, farm_id: Uuid) -> AppResult<u64> {
+    pub async fn soft_delete(&self, id: Uuid, business_id: Uuid) -> AppResult<u64> {
         let rows = sqlx::query!(
-            "UPDATE raw_materials SET is_deleted = TRUE WHERE id = $1 AND farm_id = $2 AND is_deleted = FALSE",
-            id, farm_id
+            "UPDATE raw_materials SET is_deleted = TRUE WHERE id = $1 AND business_id = $2 AND is_deleted = FALSE",
+            id, business_id
         )
             .execute(&self.pool)
             .await?
@@ -200,21 +200,21 @@ impl RawMaterialRepository {
         Ok(rows)
     }
 
-    pub async fn find_low_stock(&self, farm_id: Uuid) -> AppResult<Vec<RawMaterial>> {
+    pub async fn find_low_stock(&self, business_id: Uuid) -> AppResult<Vec<RawMaterial>> {
         let items = sqlx::query_as!(
             RawMaterial,
             r#"
-            SELECT id, farm_id, name, material_type, quantity, unit,
+            SELECT id, business_id, name, material_type, quantity, unit,
                    supplier, origin, received_date, harvest_date, expiry_date, notes,
                    low_stock_threshold, is_deleted, created_at, updated_at
             FROM   raw_materials
-            WHERE  farm_id             = $1
+            WHERE  business_id             = $1
               AND  is_deleted          = FALSE
               AND  low_stock_threshold IS NOT NULL
               AND  quantity            <= low_stock_threshold
             ORDER  BY (quantity / low_stock_threshold) ASC
             "#,
-            farm_id
+            business_id
         )
         .fetch_all(&self.pool)
         .await?;
@@ -225,7 +225,7 @@ impl RawMaterialRepository {
     pub async fn adjust_quantity(
         &self,
         id: Uuid,
-        farm_id: Uuid,
+        business_id: Uuid,
         delta: BigDecimal,
     ) -> AppResult<Option<RawMaterial>> {
         let result = sqlx::query_as!(
@@ -234,16 +234,16 @@ impl RawMaterialRepository {
             UPDATE raw_materials
                SET quantity = quantity + $1
             WHERE  id       = $2
-              AND  farm_id  = $3
+              AND  business_id  = $3
               AND  is_deleted = FALSE
               AND  (quantity + $1) >= 0
-            RETURNING id, farm_id, name, material_type, quantity, unit,
+            RETURNING id, business_id, name, material_type, quantity, unit,
                       supplier, origin, received_date, harvest_date, expiry_date, notes,
                       low_stock_threshold, is_deleted, created_at, updated_at
             "#,
             delta,
             id,
-            farm_id
+            business_id
         )
         .fetch_optional(&self.pool)
         .await?;

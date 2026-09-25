@@ -37,10 +37,10 @@ pub async fn regenerate_qr(
     Path(id): Path<Uuid>,
     Extension(_qr_service): Extension<Arc<QrService>>,
 ) -> AppResult<Response> {
-    require_role(&_claims, &["FARM_OWNER"])?;
+    require_role(&_claims, &["BUSINESS_OWNER"])?;
 
-    let farm=common::middleware::require_farm(&_claims)?;
-    _qr_service.product_repository.find_by_id_and_farm(id,farm).await?;
+    let business=common::middleware::require_business(&_claims)?;
+    _qr_service.product_repository.find_by_id_and_business(id,business).await?;
     let updated = _qr_service.regenerate(id).await?;
     Ok(ok(updated))
 }

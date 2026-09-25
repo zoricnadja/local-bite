@@ -4,7 +4,7 @@ use uuid::Uuid;
 #[derive(Debug, sqlx::FromRow, Serialize, Clone)]
 pub struct ProductionBatch {
     pub id: Uuid,
-    pub farm_id: Uuid,
+    pub business_id: Uuid,
     pub name: String,
     pub start_date: Option<NaiveDate>,
     pub end_date: Option<NaiveDate>,

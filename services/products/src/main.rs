@@ -57,7 +57,7 @@ async fn main() -> anyhow::Result<()> {
     let app = Router::new()
         .route("/health", get(|| async { "ok" }))
         .route("/internal/reservations/{id}", axum::routing::post(reservations::reserve))
-        .route("/internal/reservations/{id}/release/{farm}", axum::routing::post(reservations::release))
+        .route("/internal/reservations/{id}/release/{business}", axum::routing::post(reservations::release))
         .layer(Extension(pool.clone()))
         .nest("/products", routes::product_routes())
 

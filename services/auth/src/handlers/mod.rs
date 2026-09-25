@@ -1,3 +1,3 @@
 pub mod auth;
-pub mod farms;
+pub mod businesses;
 pub mod users;

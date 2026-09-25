@@ -44,12 +44,12 @@ impl OrderService {
 
     pub async fn list_orders(
         &self,
-        farm_id: Uuid,
+        business_id: Uuid,
         q: &ListOrdersQuery,
     ) -> AppResult<PaginatedResponse<OrderResponse>> {
         let (orders, total) = tokio::try_join!(
-            self.order_repository.find_all(farm_id, q),
-            self.order_repository.count(farm_id, q),
+            self.order_repository.find_all(business_id, q),
+            self.order_repository.count(business_id, q),
         )?;
 
         let mut responses = Vec::with_capacity(orders.len());
@@ -103,7 +103,7 @@ impl OrderService {
         let allowed = match claims.role.as_str() {
             "SYSTEM_ADMIN" => true,
             "CUSTOMER" => order.customer_id == Some(claims.sub),
-            "FARM_OWNER" | "WORKER" => claims.farm_id == Some(order.farm_id),
+            "BUSINESS_OWNER" | "WORKER" => claims.business_id == Some(order.business_id),
             _ => false,
         };
         if !allowed { return Err(AppError::NotFound("Order not found".into())); }
@@ -124,13 +124,13 @@ impl OrderService {
     pub async fn update_status(
         &self,
         id: Uuid,
-        farm_id: Uuid,
+        business_id: Uuid,
         req: UpdateStatusRequest,
         caller_role: &str,
     ) -> AppResult<OrderResponse> {
         let mut tx = self.order_repository.pool.begin().await?;
-        let current = sqlx::query_as::<_, Order>("SELECT * FROM orders WHERE id=$1 AND farm_id=$2 AND NOT is_deleted FOR UPDATE")
-            .bind(id).bind(farm_id).fetch_optional(&mut *tx).await?.ok_or_else(||AppError::NotFound("Order not found".into()))?;
+        let current = sqlx::query_as::<_, Order>("SELECT * FROM orders WHERE id=$1 AND business_id=$2 AND NOT is_deleted FOR UPDATE")
+            .bind(id).bind(business_id).fetch_optional(&mut *tx).await?.ok_or_else(||AppError::NotFound("Order not found".into()))?;
 
         let current_status = OrderStatus::from_str(&current.status)
             .ok_or_else(|| AppError::Internal(anyhow::anyhow!("Unknown current status")))?;
@@ -138,10 +138,10 @@ impl OrderService {
         let next_status = OrderStatus::from_str(&req.status)
             .ok_or_else(|| AppError::BadRequest(format!("Unknown status '{}'", req.status)))?;
 
-        // Only FARM_OWNER can cancel
-        if next_status == OrderStatus::Cancelled && caller_role != "FARM_OWNER" {
+        // Only BUSINESS_OWNER can cancel
+        if next_status == OrderStatus::Cancelled && caller_role != "BUSINESS_OWNER" {
             return Err(AppError::Forbidden(
-                "Only FARM_OWNER can cancel orders".into(),
+                "Only BUSINESS_OWNER can cancel orders".into(),
             ));
         }
 
@@ -153,10 +153,10 @@ impl OrderService {
             )));
         }
 
-        let updated = sqlx::query_as::<_,Order>("UPDATE orders SET status=$3 WHERE id=$1 AND farm_id=$2 RETURNING *")
-            .bind(id).bind(farm_id).bind(next_status.as_str()).fetch_one(&mut *tx).await?;
+        let updated = sqlx::query_as::<_,Order>("UPDATE orders SET status=$3 WHERE id=$1 AND business_id=$2 RETURNING *")
+            .bind(id).bind(business_id).bind(next_status.as_str()).fetch_one(&mut *tx).await?;
         if next_status == OrderStatus::Cancelled {
-            sqlx::query("INSERT INTO stock_release_jobs(order_id,checkout_id,farm_id) SELECT order_id,checkout_id,farm_id FROM order_stock_links WHERE order_id=$1 ON CONFLICT DO NOTHING").bind(id).execute(&mut *tx).await?;
+            sqlx::query("INSERT INTO stock_release_jobs(order_id,checkout_id,business_id) SELECT order_id,checkout_id,business_id FROM order_stock_links WHERE order_id=$1 ON CONFLICT DO NOTHING").bind(id).execute(&mut *tx).await?;
         }
         tx.commit().await?;
         let _ = crate::checkout::release_pending(self).await;
@@ -174,11 +174,11 @@ impl OrderService {
 
     // ── Delete order ──────────────────────────────────────────────────────────
 
-    pub async fn delete_order(&self, id: Uuid, farm_id: Uuid) -> AppResult<()> {
+    pub async fn delete_order(&self, id: Uuid, business_id: Uuid) -> AppResult<()> {
         let mut tx=self.order_repository.pool.begin().await?;
-        let order=sqlx::query_as::<_,Order>("SELECT * FROM orders WHERE id=$1 AND farm_id=$2 AND NOT is_deleted FOR UPDATE").bind(id).bind(farm_id).fetch_optional(&mut *tx).await?.ok_or_else(||AppError::NotFound("Order not found".into()))?;
+        let order=sqlx::query_as::<_,Order>("SELECT * FROM orders WHERE id=$1 AND business_id=$2 AND NOT is_deleted FOR UPDATE").bind(id).bind(business_id).fetch_optional(&mut *tx).await?.ok_or_else(||AppError::NotFound("Order not found".into()))?;
         if !matches!(order.status.as_str(),"PENDING"|"CANCELLED"){return Err(AppError::BadRequest("Only pending or cancelled orders may be deleted".into()));}
-        sqlx::query("INSERT INTO stock_release_jobs(order_id,checkout_id,farm_id) SELECT order_id,checkout_id,farm_id FROM order_stock_links WHERE order_id=$1 ON CONFLICT DO NOTHING").bind(id).execute(&mut *tx).await?;
+        sqlx::query("INSERT INTO stock_release_jobs(order_id,checkout_id,business_id) SELECT order_id,checkout_id,business_id FROM order_stock_links WHERE order_id=$1 ON CONFLICT DO NOTHING").bind(id).execute(&mut *tx).await?;
         sqlx::query("UPDATE orders SET is_deleted=true,status='CANCELLED' WHERE id=$1").bind(id).execute(&mut *tx).await?;
         tx.commit().await?;
         let _=crate::checkout::release_pending(self).await;
@@ -189,17 +189,17 @@ impl OrderService {
 
     pub async fn get_analytics(
         &self,
-        farm_id: Uuid,
+        business_id: Uuid,
         from: &str,
         to: &str,
     ) -> AppResult<AnalyticsResponse> {
         let (total_revenue, total_orders, orders_by_status, monthly_raw, top_products) = tokio::try_join!(
-            self.order_repository.total_revenue(farm_id, from, to),
-            self.order_repository.total_orders(farm_id, from, to),
-            self.order_repository.orders_by_status(farm_id, from, to),
-            self.order_repository.revenue_by_month(farm_id, from, to),
+            self.order_repository.total_revenue(business_id, from, to),
+            self.order_repository.total_orders(business_id, from, to),
+            self.order_repository.orders_by_status(business_id, from, to),
+            self.order_repository.revenue_by_month(business_id, from, to),
             self.order_item_repository
-                .top_products(farm_id, 10, from, to),
+                .top_products(business_id, 10, from, to),
         )?;
 
         let revenue_by_month = monthly_raw
@@ -226,7 +226,7 @@ impl OrderService {
 pub(crate) fn map_order_response(order: Order, items: Vec<OrderItem>) -> OrderResponse {
     OrderResponse {
         id: order.id,
-        farm_id: order.farm_id,
+        business_id: order.business_id,
         customer_id: order.customer_id,
         customer_name: order.customer_name,
         customer_email: order.customer_email,

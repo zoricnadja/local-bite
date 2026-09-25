@@ -1,0 +1,77 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT id, batch_id, business_id, step_order, name, description,\n                   duration_hours, temperature, created_at, updated_at\n            FROM   process_steps\n            WHERE  id = $1 AND batch_id = $2\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "batch_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "business_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 3,
+        "name": "step_order",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 5,
+        "name": "description",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "duration_hours",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 7,
+        "name": "temperature",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 8,
+        "name": "created_at",
+        "type_info": "Timestamp"
+      },
+      {
+        "ordinal": 9,
+        "name": "updated_at",
+        "type_info": "Timestamp"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "a5ccaf162bac411482b159be7106fbbed7d2f195d16f88b47187255f15be3938"
+}

@@ -45,7 +45,8 @@ pub struct ProductPolicyFactory;
 impl ProductPolicyFactory {
     pub fn for_type(product_type: &str) -> Box<dyn ProductPolicy> {
         match product_type.trim().to_ascii_lowercase().as_str() {
-            "food" | "meat" | "dairy" | "honey" | "juice" | "preserve" | "cheese" | "sausage" | "vegetable" | "fruit" => {
+            value if (value != "other" && common::product_types::is_supported_product_type(value))
+                || matches!(value, "food" | "juice" | "preserve") => {
                 Box::new(FoodProductPolicy)
             }
             _ => Box::new(GenericProductPolicy),

@@ -35,14 +35,14 @@ Krajnji korisnik ne pristupa PostgreSQL-u ili RabbitMQ-u. Angular komunicira kro
 
 | Granica | Vlasništvo | Razlog razdvajanja |
 |---|---|---|
-| Identitet i gazdinstva | Korisnik, uloga, farm assignment, profil gazdinstva | Jedno mesto za prijavu i upravljanje članstvom |
+| Identitet i gazdinstva | Korisnik, uloga, business assignment, profil gazdinstva | Jedno mesto za prijavu i upravljanje članstvom |
 | Sirovine | Raspoložive sirovine i ledger proizvodne potrošnje | Centralna validacija količina sirovina |
 | Proizvodnja | Serija, redosled procesa, snimak utroška, izlaz | Praćenje transformacije ulaza u gotov proizvod |
 | Proizvodi | Gotova zaliha, cena, aktivnost, slike, QR | Razdvajanje proizvodnje od prodajne spremnosti |
 | Porudžbine | Porudžbina, stavke, status i finansijski snimci | Evidencija prodaje i istorijska cena |
 | Čitanje projekcija | Kopije integracionih podataka i receipts | Objedinjeni dashboard/poreklo bez runtime fan-out-a na sve izvore |
 
-Gazdinstvo je tenant u aplikacionom smislu. Ne postoji posebna baza po gazdinstvu: svi tenant-i jednog domena dele tabelu, a `farm_id` i autorizacija ograničavaju pristup. Nije implementiran PostgreSQL Row-Level Security u pregledanim migracijama.
+Gazdinstvo je tenant u aplikacionom smislu. Ne postoji posebna baza po gazdinstvu: svi tenant-i jednog domena dele tabelu, a `business_id` i autorizacija ograničavaju pristup. Nije implementiran PostgreSQL Row-Level Security u pregledanim migracijama.
 
 ## 4. Podaci i integracije
 
@@ -75,7 +75,7 @@ Strelice od baza ka brokeru predstavljaju trigger + outbox + aplikacioni relay, 
 
 ```mermaid
 flowchart TD
-    Router[Router i extractors] --> Handler[Handler: HTTP, uloga, farm scope]
+    Router[Router i extractors] --> Handler[Handler: HTTP, uloga, business scope]
     Handler --> Service[Service: pravila i koordinacija]
     Service --> Repository[Repository: SQL i lokalne transakcije]
     Repository --> DB[(PostgreSQL)]

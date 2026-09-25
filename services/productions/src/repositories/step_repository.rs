@@ -18,7 +18,7 @@ impl StepRepository {
     pub async fn find_by_batch(&self, batch_id: Uuid) -> AppResult<Vec<ProcessStep>> {
         Ok(sqlx::query_as::<_, ProcessStep>(
             r#"
-            SELECT id, batch_id, farm_id, step_order, name, description,
+            SELECT id, batch_id, business_id, step_order, name, description,
                    variables, status, created_at, updated_at
             FROM   process_steps
             WHERE  batch_id = $1
@@ -37,7 +37,7 @@ impl StepRepository {
     ) -> AppResult<ProcessStep> {
         sqlx::query_as::<_, ProcessStep>(
             r#"
-            SELECT id, batch_id, farm_id, step_order, name, description,
+            SELECT id, batch_id, business_id, step_order, name, description,
                    variables, status, created_at, updated_at
             FROM   process_steps
             WHERE  id = $1 AND batch_id = $2
@@ -78,15 +78,15 @@ impl StepRepository {
         Ok(sqlx::query_as::<_, ProcessStep>(
             r#"
             INSERT INTO process_steps
-                (id, batch_id, farm_id, step_order, name, description, variables)
+                (id, batch_id, business_id, step_order, name, description, variables)
             VALUES ($1, $2, $3, $4, $5, $6, $7)
-            RETURNING id, batch_id, farm_id, step_order, name, description,
+            RETURNING id, batch_id, business_id, step_order, name, description,
                       variables, status, created_at, updated_at
             "#,
         )
         .bind(p.id)
         .bind(p.batch_id)
-        .bind(p.farm_id)
+        .bind(p.business_id)
         .bind(p.step_order)
         .bind(p.name)
         .bind(p.description)
@@ -110,7 +110,7 @@ impl StepRepository {
                 variables      = $4,
                 status         = $7
             WHERE id = $5 AND batch_id = $6
-            RETURNING id, batch_id, farm_id, step_order, name, description,
+            RETURNING id, batch_id, business_id, step_order, name, description,
                       variables, status, created_at, updated_at
             "#,
         )

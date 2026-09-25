@@ -16,9 +16,11 @@ pub struct IntegrationEvent {
     pub schema_version: u32,
     pub source: String,
     pub sequence: i64,
+    #[serde(deserialize_with = "crate::business_upgrade::entity_type")]
     pub entity_type: String,
     pub entity_id: uuid::Uuid,
     pub operation: String,
+    #[serde(deserialize_with = "crate::business_upgrade::event_data")]
     pub data: Value,
 }
 

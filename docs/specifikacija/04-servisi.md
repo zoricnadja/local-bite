@@ -8,21 +8,21 @@ Portovi 3001–3006 predstavljaju očekivanja Nginx/Docker mreže. `PORT` u poje
 
 **Paket:** `services/auth`; **baza:** `auth_db`; **mrežni port:** 3001.
 
-`AuthService` registruje korisnika, hash-uje lozinku, proverava login, izdaje i verifikuje JWT. `UserService` čita/menja/briše profile. `FarmService` upravlja gazdinstvom i registruje radnika sa fiksnom ulogom `WORKER` i `farm_id` iz putanje vlasničkog zahteva.
+`AuthService` registruje korisnika, hash-uje lozinku, proverava login, izdaje i verifikuje JWT. `UserService` čita/menja/briše profile. `BusinessService` upravlja gazdinstvom i registruje radnika sa fiksnom ulogom `WORKER` i `business_id` iz putanje vlasničkog zahteva.
 
-`UserRepository` upisuje i pronalazi naloge po email-u/ID-u i menja farm assignment. `FarmRepository` radi sa gazdinstvima i upitom radnika. `auth_middleware` proverava JWT i stavlja korisnički UUID u extensions; drugi handleri dodatno koriste common `AuthClaims` za kompletne claims.
+`UserRepository` upisuje i pronalazi naloge po email-u/ID-u i menja business assignment. `BusinessRepository` radi sa gazdinstvima i upitom radnika. `auth_middleware` proverava JWT i stavlja korisnički UUID u extensions; drugi handleri dodatno koriste common `AuthClaims` za kompletne claims.
 
-`/me` čita korisnika iz baze i vraća novi `x-session-token`, pa promenjen farm assignment može da se prenese u naredne zahteve. Vraća User direktno, za razliku od većine ruta koje koriste `{data: ...}`. `User.password_hash` ima `skip_serializing`.
+`/me` čita korisnika iz baze i vraća novi `x-session-token`, pa promenjen business assignment može da se prenese u naredne zahteve. Vraća User direktno, za razliku od većine ruta koje koriste `{data: ...}`. `User.password_hash` ima `skip_serializing`.
 
-Objavljuje promene `users` i `farms` preko outbox-a. Korisnički payload sadrži samo ID, role i farm assignment; farma samo ID, naziv i vlasnički ID. Ne šalje lozinku, adresu ili profil u projekciju.
+Objavljuje promene `users` i `businesses` preko outbox-a. Korisnički payload sadrži samo ID, role i business assignment; firma samo ID, naziv i vlasnički ID. Ne šalje lozinku, adresu ili profil u projekciju.
 
-Registracija dozvoljava samo CUSTOMER i FARM_OWNER. Admin provere koriste SYSTEM_ADMIN; GET /farms vezan je za administratorski handler, a /health vraća ok. Kreiranje farme i dodela vlasniku su jedna transakcija sa zaključanim korisnikom; brisanje odvaja sve članove. To nije distribuirano brisanje ostalih domena.
+Registracija dozvoljava samo CUSTOMER i BUSINESS_OWNER. Admin provere koriste SYSTEM_ADMIN; GET /businesses vezan je za administratorski handler, a /health vraća ok. Kreiranje firme i dodela vlasniku su jedna transakcija sa zaključanim korisnikom; brisanje odvaja sve članove. To nije distribuirano brisanje ostalih domena.
 
 ## 2. Raw Materials — evidencija ulaznih sirovina
 
 **Paket:** `services/raw-materials`; **baza:** `raw_materials_db`; **port:** 3002.
 
-`RawMaterialService` implementira CRUD, validaciju datuma, pregled niske zalihe i korekciju. `RawMaterialRepository` izvršava upite sa `farm_id`, filtrima i soft-delete uslovom. `adjust_quantity` je relativna korekcija `delta`, a ne unos apsolutne nove količine; repository čuva nenegativnost uslovnim SQL-om.
+`RawMaterialService` implementira CRUD, validaciju datuma, pregled niske zalihe i korekciju. `RawMaterialRepository` izvršava upite sa `business_id`, filtrima i soft-delete uslovom. `adjust_quantity` je relativna korekcija `delta`, a ne unos apsolutne nove količine; repository čuva nenegativnost uslovnim SQL-om.
 
 `handlers/consumption.rs` je transakcioni podmodul za proizvodni utrošak. Prima niz operacija, sortira ih po sirovini, vezuje UUID operacije za količinu/jedinicu/gazdinstvo i izvršava umanjenje samo ako postoji dovoljno stanja. Sve stavke zahteva pripadaju jednoj lokalnoj transakciji.
 
@@ -42,7 +42,7 @@ Dodavanje sirovine postojećoj seriji dodatno zaključava red serije pomoću `FO
 
 Završetak zahteva definisan izlaz i blokira naredne batch izmene. Repository koristi očekivani raniji status pri update-u radi detekcije konkurentne promene. `process_steps` ima SQL jedinstvenost `(batch_id, step_order)`. Dodavanje koraka je blokirano za završene/otkazane serije, a DB trigger štiti sve izmene koraka i materijala završene serije.
 
-Objavljuje `production_batches`, `process_steps` i `batch_raw_materials`. Putanja `/batches/{id}/trace` prima samo `TRACEABILITY` token vezan za taj batch i farmu; koristi se pri aktiviranju proizvoda. Za javno čitanje porekla proizvoda glavna putanja više ne radi direktan fan-out ka ovom servisu.
+Objavljuje `production_batches`, `process_steps` i `batch_raw_materials`. Putanja `/batches/{id}/trace` prima samo `TRACEABILITY` token vezan za taj batch i firmu; koristi se pri aktiviranju proizvoda. Za javno čitanje porekla proizvoda glavna putanja više ne radi direktan fan-out ka ovom servisu.
 
 ## 4. Products — skladište, ponuda, mediji i poreklo
 
@@ -62,7 +62,7 @@ Objavljuje `production_batches`, `process_steps` i `batch_raw_materials`. Putanj
 
 Output consumer upisuje poslednje stanje serije u `production_states`. Za `COMPLETED` sa izlaznom količinom formira proizvod u transakciji, uz advisory lock po batch-u i jedinstvenu vezu u `production_outputs`. Stare završene serije bez podatka o prinosu ne stvaraju izmišljenu količinu.
 
-Efektivna aktivnost na listi je `products.is_active` zajedno sa postojanjem završene, neobrisane serije iste farme u `production_states`. Skladište je filter efektivne aktivnosti false; nije poseban servis niti posebna tabela skladišnih stavki. Cena 0 i `is_active=false` su početno stanje automatskog izlaza.
+Efektivna aktivnost na listi je `products.is_active` zajedno sa postojanjem završene, neobrisane serije iste firme u `production_states`. Skladište je filter efektivne aktivnosti false; nije poseban servis niti posebna tabela skladišnih stavki. Cena 0 i `is_active=false` su početno stanje automatskog izlaza.
 
 Public QR tok dodatno čita stvarni proizvod iz products baze. Proverava `is_active`, `is_deleted` i QR token; proveru završene serije radi preko lokalne asinhrone projekcije. Zbog toga „trenutna provera vidljivosti“ važi za sam product zapis, a ne za sve udaljene domene.
 
@@ -78,7 +78,7 @@ Public QR tok dodatno čita stvarni proizvod iz products baze. Proverava `is_act
 
 Revenue i top-products uključuju samo `DELIVERED`, dok total-orders i raspodela statusa uključuju neobrisane porudžbine svih statusa. Datum filtera je datum kreiranja, ne datum isporuke. Mesečni prihod je grupisan po mesecu kreiranja isporučene porudžbine. Baza nema posebno polje valute; UI prikazuje evro.
 
-Objavljuje orders i order_items snapshot-e. Kontakt ime, email i napomene porudžbine izostavljeni su iz outbox payload-a. Detalj proverava kupca ili farmu, a logovi ne ispisuju ceo Order objekat. checkout.rs koordinira trajnu nameru, idempotentnu rezervaciju, upis porudžbina i release.
+Objavljuje orders i order_items snapshot-e. Kontakt ime, email i napomene porudžbine izostavljeni su iz outbox payload-a. Detalj proverava kupca ili firmu, a logovi ne ispisuju ceo Order objekat. checkout.rs koordinira trajnu nameru, idempotentnu rezervaciju, upis porudžbina i release.
 
 ## 6. Read Models — query API i projekcije
 
@@ -88,9 +88,9 @@ Objavljuje orders i order_items snapshot-e. Kontakt ime, email i napomene porud�
 
 `queries.rs` daje tri poslovne putanje:
 
-- `/dashboard`: kupcu najviše pet njegovih poslednjih porudžbina; vlasniku i radniku njegovu farmu; administratoru globalni pregled. Radniku su finansijska i orders statistika vraćene kao nule.
+- `/dashboard`: kupcu najviše pet njegovih poslednjih porudžbina; vlasniku i radniku njegovu firmu; administratoru globalni pregled. Radniku su finansijska i orders statistika vraćene kao nule.
 - `/producers`: lista ID-a i naziva gazdinstava za autentifikovane korisnike.
-- `/internal/provenance/{id}`: projekcija proizvoda, proizvođača, serije, koraka i sirovina; tehnički token mora imati isti subject i farm scope.
+- `/internal/provenance/{id}`: projekcija proizvoda, proizvođača, serije, koraka i sirovina; tehnički token mora imati isti subject i business scope.
 
 `/health` prijavljuje `status` i `consumer_connected`. To ne dokazuje praznu zaostalu kolonu poruka ili potpunu ažurnost podataka.
 
@@ -104,9 +104,9 @@ Objavljuje orders i order_items snapshot-e. Kontakt ime, email i napomene porud�
 | `response` | 200/201 JSON envelope i 204 odgovor |
 | `paginated_response` | `data`, `total`, `page`, `limit` |
 | `jwt` | Claims i encode/decode helper-i |
-| `middleware` | AuthClaims extractor, require_role i require_farm |
+| `middleware` | AuthClaims extractor, require_role i require_business |
 | `models` | Role enum i prevod naziva |
 | `events` | Envelope, AMQP topologija i outbox relay |
 | `service_auth` | Kratkotrajni tehnički tokeni i provera operacije |
 
-`require_farm` samo zahteva da claims ima `farm_id`: nema administratorski bypass niti dodatni upit baze. Poslovni kod zato mora posebno odlučiti kako se administratoru bira opseg.
+`require_business` samo zahteva da claims ima `business_id`: nema administratorski bypass niti dodatni upit baze. Poslovni kod zato mora posebno odlučiti kako se administratoru bira opseg.

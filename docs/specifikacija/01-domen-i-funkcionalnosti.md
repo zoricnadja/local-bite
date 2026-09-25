@@ -14,12 +14,12 @@ Sistem je generički u smislu da sirovina i proizvod imaju naziv, tip i jedinicu
 |---|---|---|
 | Posetilac | Nema JWT | Otvara javni QR prikaz i PDF |
 | Kupac | `CUSTOMER` | Pregleda ponudu, filtrira proizvođače, kreira i prati svoje porudžbine |
-| Vlasnik | `FARM_OWNER` | Kreira gazdinstvo, dodaje radnike, upravlja zalihama, proizvodnjom, proizvodima i porudžbinama |
+| Vlasnik | `BUSINESS_OWNER` | Kreira gazdinstvo, dodaje radnike, upravlja zalihama, proizvodnjom, proizvodima i porudžbinama |
 | Radnik | `WORKER` | Obavlja operativne izmene sirovina, proizvodnje i proizvoda; ažurira dozvoljene statuse porudžbina |
 | Administrator | `SYSTEM_ADMIN` | Pojedini globalni pregledi; administrativna podrška je neujednačena po endpointima |
 | Interni čitalac porekla | `TRACEABILITY` | Kratkotrajni tehnički JWT, ograničen na gazdinstvo i konkretan ID |
 
-Frontend korisnički model koristi `FarmOwner`, `Worker`, `Customer`, `SystemAdmin`, dok JWT koristi velika slova sa donjim crtama. `TRACEABILITY` nije nalog krajnjeg korisnika.
+Frontend korisnički model koristi `BusinessOwner`, `Worker`, `Customer`, `SystemAdmin`, dok JWT koristi velika slova sa donjim crtama. `TRACEABILITY` nije nalog krajnjeg korisnika.
 
 ## 3. Katalog funkcionalnih zahteva
 
@@ -28,7 +28,7 @@ Frontend korisnički model koristi `FarmOwner`, `Worker`, `Customer`, `SystemAdm
 | F-01 | Registracija | Email, lozinka i obavezni profil; Argon2 hash; JWT u odgovoru |
 | F-02 | Prijava i sesija | Provera lozinke, JWT od jednog sata, `/me` vraća profil i osveženi token |
 | F-03 | Profil | Pregled i promena sopstvenih podataka; brisanje naloga uz ograničenja uloge |
-| F-04 | Gazdinstvo | Kreiranje za vlasnika, povezivanje korisnika, novi token sa `farm_id`, izmena i brisanje |
+| F-04 | Gazdinstvo | Kreiranje za vlasnika, povezivanje korisnika, novi token sa `business_id`, izmena i brisanje |
 | F-05 | Zaposleni | Vlasnik dodaje novog korisnika kao radnika svog gazdinstva i pregleda radnike |
 | F-06 | Sirovine | Unos, pregled, pretraga, filtriranje po tipu, izmena i logičko brisanje |
 | F-07 | Stanje sirovina | Korekcija količine, prag niske zalihe i pregled zaliha ispod praga |
@@ -56,9 +56,9 @@ Prisustvo funkcionalnosti nije garancija da su svi granični slučajevi zatvoren
 
 ### UC-01 — Otvaranje gazdinstva
 
-Preduslov: korisnik ima ulogu vlasnika. Vlasnik šalje naziv i adresu, sa opcionim telefonom, opisom i sajtom. Auth proverava da li taj vlasnik već ima gazdinstvo, upisuje ga, ažurira `users.farm_id` i izdaje novi token. Frontend čuva token, a osvežavanjem profila usklađuje podatke sesije.
+Preduslov: korisnik ima ulogu vlasnika. Vlasnik šalje naziv i adresu, sa opcionim telefonom, opisom i sajtom. Auth proverava da li taj vlasnik već ima gazdinstvo, upisuje ga, ažurira `users.business_id` i izdaje novi token. Frontend čuva token, a osvežavanjem profila usklađuje podatke sesije.
 
-Ishod: naredne komande dobijaju `farm_id` iz tokena. Kreiranje farme zaključava korisnika i u jednoj transakciji upisuje farmu i dodeljuje vlasnika; paralelni drugi pokušaj dobija konflikt.
+Ishod: naredne komande dobijaju `business_id` iz tokena. Kreiranje firme zaključava korisnika i u jednoj transakciji upisuje firmu i dodeljuje vlasnika; paralelni drugi pokušaj dobija konflikt.
 
 ### UC-02 — Evidentiranje i potrošnja sirovine
 
@@ -86,7 +86,7 @@ Ishod je niz porudžbina. Cena stavke ostaje snimak pri poručivanju. Zaliha se 
 
 Posetilac skenira QR i otvara `/trace/:qrToken`. Browser zove javni products API. Products proverava token, aktivnost i logičko brisanje u svojoj bazi, kao i lokalno projektovano stanje proizvodnje. Read-model servis vraća lanac porekla uz interni token. Posetilac vidi sažet prikaz i može da otvori PDF bez registracije.
 
-Nepostojeći ili neaktivan proizvod daje 404. Nedostajuća projekcija proizvoda ili nepodudaranje reference serije može dati 409. Frontend za 409 pokušava još četiri puta, sa razmakom od jedne sekunde; posle neuspeha nudi ručni ponovni pokušaj. Nedostajuća projekcija farme ili serije može biti prikazana kao nepotpuna informacija, ne mora uvek dati 409.
+Nepostojeći ili neaktivan proizvod daje 404. Nedostajuća projekcija proizvoda ili nepodudaranje reference serije može dati 409. Frontend za 409 pokušava još četiri puta, sa razmakom od jedne sekunde; posle neuspeha nudi ručni ponovni pokušaj. Nedostajuća projekcija firme ili serije može biti prikazana kao nepotpuna informacija, ne mora uvek dati 409.
 
 ## 5. Životni ciklusi
 
@@ -123,7 +123,7 @@ Samo vlasnik može da zatraži `CANCELLED`. Logičko brisanje porudžbine dozvol
 - Jedinica potrošnje mora odgovarati jedinici sirovine; poređenje je tekstualno.
 - Datum isteka sirovine ne sme prethoditi evidentiranom datumu berbe/proizvodnje ni prijema.
 - Datum kraja serije ne sme prethoditi početku. Pri pokretanju/završavanju mogu se dopuniti današnjim UTC datumom.
-- Završavanje prihvata tipove `meat`, `dairy`, `vegetable`, `fruit`, `cheese`, `sausage`, `honey`, `other` i jedinice `kg`, `g`, `l`, `ml`, `pcs`.
+- Završavanje prihvata tipove `meat`,`meat_products`,`dairy`,`eggs`,`fish`,`vegetable`,`fruit`,`grain`,`legume`,`nuts_seeds`,`bakery`,`honey`,`oils`,`preserves`,`beverages`,`herbs_spices`,`other` i jedinice `kg`, `g`, `l`, `ml`, `pcs`. Oznake `cheese` i `sausage` ostaju podržane za postojeće zapise; za nove se koriste `dairy` i `meat_products`.
 - Ne postoji proračun očekivanog prinosa, normativ, automatski otpis ili obavezna jednakost ulazne i izlazne mase.
 - Evidentiran rok trajanja isključuje proizvod iz efektivno aktivne ponude i rezervacije nakon isteka.
 

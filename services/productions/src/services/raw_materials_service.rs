@@ -13,7 +13,7 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 /// Fetch a single raw material from Raw Materials service to validate it exists
-/// and belongs to the same farm, and to snapshot its name/type/origin.
+/// and belongs to the same business, and to snapshot its name/type/origin.
 
 #[derive(Clone)]
 pub struct RawMaterialsService {
@@ -39,13 +39,13 @@ impl RawMaterialsService {
     pub async fn add(
         &self,
         batch_id: Uuid,
-        farm_id: Uuid,
+        business_id: Uuid,
         req: RawMaterialRequest,
         token: &str,
     ) -> AppResult<BatchRawMaterial> {
         let batch = self
             .batch_repository
-            .find_by_id_and_farm(batch_id, farm_id)
+            .find_by_id_and_business(batch_id, business_id)
             .await?;
 
         if batch.status == "COMPLETED" || batch.status == "CANCELLED" {
@@ -80,15 +80,15 @@ impl RawMaterialsService {
         }
         let mut tx = self.raw_materials_repository.pool.begin().await?;
         // Lock the batch while changing its materials and checking its status.
-        let status: String = sqlx::query_scalar("SELECT status FROM production_batches WHERE id=$1 AND farm_id=$2 AND NOT is_deleted FOR UPDATE")
-            .bind(batch_id).bind(farm_id).fetch_one(&mut *tx).await?;
+        let status: String = sqlx::query_scalar("SELECT status FROM production_batches WHERE id=$1 AND business_id=$2 AND NOT is_deleted FOR UPDATE")
+            .bind(batch_id).bind(business_id).fetch_one(&mut *tx).await?;
         if status == "COMPLETED" || status == "CANCELLED" {
             return Err(AppError::BadRequest(
                 "This batch no longer accepts materials".into(),
             ));
         }
         let operation_id = Uuid::new_v4();
-        crate::material_recovery::journal(&self.raw_materials_repository.pool, &mut tx, operation_id, farm_id).await?;
+        crate::material_recovery::journal(&self.raw_materials_repository.pool, &mut tx, operation_id, business_id).await?;
         let material = self
             .raw_materials_repository
             .insert_in(
@@ -96,7 +96,7 @@ impl RawMaterialsService {
                 InsertRawMaterialParams {
                     id: operation_id,
                     batch_id,
-                    farm_id,
+                    business_id,
                     raw_material_id: snap.id,
                     raw_material_name: snap.name,
                     material_type: snap.material_type,
@@ -126,11 +126,11 @@ impl RawMaterialsService {
         &self,
         batch_id: Uuid,
         raw_material_id: Uuid,
-        farm_id: Uuid,
+        business_id: Uuid,
     ) -> AppResult<()> {
         let batch = self
             .batch_repository
-            .find_by_id_and_farm(batch_id, farm_id)
+            .find_by_id_and_business(batch_id, business_id)
             .await?;
 
         if batch.status == "COMPLETED" {
@@ -141,7 +141,7 @@ impl RawMaterialsService {
 
         let rows = self
             .raw_materials_repository
-            .delete(batch_id, raw_material_id, farm_id)
+            .delete(batch_id, raw_material_id, business_id)
             .await?;
         if rows == 0 {
             return Err(AppError::NotFound(format!(
@@ -176,7 +176,7 @@ impl RawMaterialsService {
             .unwrap_or_else(|_| "http://raw-materials-service:3002".into());
         let secret=std::env::var("JWT_SECRET").map_err(|e|AppError::Internal(e.into()))?;
         let claims=common::jwt::decode_jwt(token,&secret)?.claims;
-        let internal=common::service_auth::token("MATERIAL_STOCK",Uuid::nil(),claims.farm_id)?;
+        let internal=common::service_auth::token("MATERIAL_STOCK",Uuid::nil(),claims.business_id)?;
         let client = reqwest::Client::new();
         for attempt in 0..3 {
             let result = client
@@ -235,7 +235,7 @@ impl RawMaterialsService {
 
         if resp.status().as_u16() == 404 {
             return Err(anyhow!(
-                "Raw material {} not found or not owned by your farm",
+                "Raw material {} not found or not owned by your business",
                 raw_material_id
             ));
         }

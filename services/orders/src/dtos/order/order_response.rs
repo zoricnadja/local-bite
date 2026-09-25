@@ -6,7 +6,7 @@ use uuid::Uuid;
 #[derive(Debug, Serialize)]
 pub struct OrderResponse {
     pub id: Uuid,
-    pub farm_id: Uuid,
+    pub business_id: Uuid,
     pub customer_id: Option<Uuid>,
     pub customer_name: Option<String>,
     pub customer_email: Option<String>,

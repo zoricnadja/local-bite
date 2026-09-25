@@ -14,7 +14,7 @@ use crate::models::query::ListQuery;
 use crate::service::service::RawMaterialService;
 use common::{
     errors::AppResult,
-    middleware::{require_farm, require_role, AuthClaims},
+    middleware::{require_business, require_role, AuthClaims},
     response::{created, no_content, ok},
 };
 
@@ -24,9 +24,9 @@ pub async fn list(
     Query(_q): Query<ListQuery>,
     Extension(_raw_material_service): Extension<Arc<RawMaterialService>>,
 ) -> AppResult<Response> {
-    require_role(&_claims, &["FARM_OWNER", "WORKER", "SYSTEM_ADMIN"])?;
-    let farm_id = require_farm(&_claims)?;
-    let result = _raw_material_service.list(farm_id, &_q).await?;
+    require_role(&_claims, &["BUSINESS_OWNER", "WORKER", "SYSTEM_ADMIN"])?;
+    let business_id = require_business(&_claims)?;
+    let result = _raw_material_service.list(business_id, &_q).await?;
     Ok(ok(result))
 }
 
@@ -36,9 +36,9 @@ pub async fn create(
     Extension(_raw_material_service): Extension<Arc<RawMaterialService>>,
     Json(_req): Json<CreateRawMaterialRequest>,
 ) -> AppResult<Response> {
-    require_role(&_claims, &["FARM_OWNER", "WORKER"])?;
-    let farm_id = require_farm(&_claims)?;
-    let material = _raw_material_service.create(farm_id, _req).await?;
+    require_role(&_claims, &["BUSINESS_OWNER", "WORKER"])?;
+    let business_id = require_business(&_claims)?;
+    let material = _raw_material_service.create(business_id, _req).await?;
     Ok(created(material))
 }
 
@@ -48,9 +48,9 @@ pub async fn get_one(
     Path(_id): Path<Uuid>,
     Extension(_raw_material_service): Extension<Arc<RawMaterialService>>,
 ) -> AppResult<Response> {
-    require_role(&_claims, &["FARM_OWNER", "WORKER", "SYSTEM_ADMIN"])?;
-    let farm_id = require_farm(&_claims)?;
-    let material = _raw_material_service.get_one(_id, farm_id).await?;
+    require_role(&_claims, &["BUSINESS_OWNER", "WORKER", "SYSTEM_ADMIN"])?;
+    let business_id = require_business(&_claims)?;
+    let material = _raw_material_service.get_one(_id, business_id).await?;
     Ok(ok(material))
 }
 
@@ -61,9 +61,9 @@ pub async fn update(
     Extension(_raw_material_service): Extension<Arc<RawMaterialService>>,
     Json(_req): Json<UpdateRawMaterialRequest>,
 ) -> AppResult<Response> {
-    require_role(&_claims, &["FARM_OWNER", "WORKER"])?;
-    let farm_id = require_farm(&_claims)?;
-    let updated = _raw_material_service.update(_id, farm_id, _req).await?;
+    require_role(&_claims, &["BUSINESS_OWNER", "WORKER"])?;
+    let business_id = require_business(&_claims)?;
+    let updated = _raw_material_service.update(_id, business_id, _req).await?;
     Ok(ok(updated))
 }
 
@@ -73,9 +73,9 @@ pub async fn delete(
     Path(_id): Path<Uuid>,
     Extension(_raw_material_service): Extension<Arc<RawMaterialService>>,
 ) -> AppResult<Response> {
-    require_role(&_claims, &["FARM_OWNER"])?;
-    let farm_id = require_farm(&_claims)?;
-    _raw_material_service.delete(_id, farm_id).await?;
+    require_role(&_claims, &["BUSINESS_OWNER"])?;
+    let business_id = require_business(&_claims)?;
+    _raw_material_service.delete(_id, business_id).await?;
     Ok(no_content())
 }
 
@@ -85,9 +85,9 @@ pub async fn low_stock(
     Extension(_raw_material_service): Extension<Arc<RawMaterialService>>,
 ) -> AppResult<Response> {
     tracing::info!("Low stock service {}", _claims.role);
-    require_role(&_claims, &["FARM_OWNER", "WORKER"])?;
-    let farm_id = require_farm(&_claims)?;
-    let items = _raw_material_service.low_stock(farm_id).await?;
+    require_role(&_claims, &["BUSINESS_OWNER", "WORKER"])?;
+    let business_id = require_business(&_claims)?;
+    let items = _raw_material_service.low_stock(business_id).await?;
     Ok(ok(items))
 }
 
@@ -98,10 +98,10 @@ pub async fn adjust_quantity(
     Extension(_raw_material_service): Extension<Arc<RawMaterialService>>,
     Json(_req): Json<AdjustQuantityRequest>,
 ) -> AppResult<Response> {
-    require_role(&_claims, &["FARM_OWNER", "WORKER"])?;
-    let farm_id = require_farm(&_claims)?;
+    require_role(&_claims, &["BUSINESS_OWNER", "WORKER"])?;
+    let business_id = require_business(&_claims)?;
     let updated = _raw_material_service
-        .adjust_quantity(_id, farm_id, _req)
+        .adjust_quantity(_id, business_id, _req)
         .await?;
     Ok(ok(updated))
 }

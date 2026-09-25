@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT COUNT(*) FROM orders\n            WHERE  business_id    = $1\n              AND  is_deleted = FALSE\n              AND  ($2 = '' OR created_at::date >= $2::date)\n              AND  ($3 = '' OR created_at::date <= $3::date)\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "0b35dadee2f2c68fc043f0fce3ced4f73f4e219dfc7ba05f8ffaa188e6e65da2"
+}

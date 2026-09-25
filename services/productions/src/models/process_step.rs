@@ -6,7 +6,7 @@ use uuid::Uuid;
 pub struct ProcessStep {
     pub id: Uuid,
     pub batch_id: Uuid,
-    pub farm_id: Uuid,
+    pub business_id: Uuid,
     pub step_order: i32,
     pub status: String,
     pub name: String,

@@ -24,7 +24,7 @@ impl ImageService {
     pub async fn upload(
         &self,
         id: Uuid,
-        farm_id: Uuid,
+        business_id: Uuid,
         bytes: Vec<u8>,
         mime_type: &str,
     ) -> AppResult<Product> {
@@ -36,7 +36,7 @@ impl ImageService {
 
         let existing = self
             .product_repository
-            .find_by_id_and_farm(id, farm_id)
+            .find_by_id_and_business(id, business_id)
             .await?;
 
         if let Some(old_path) = &existing.image_path {
@@ -47,7 +47,7 @@ impl ImageService {
             .map_err(|e| AppError::BadRequest(e.to_string()))?;
 
         self.product_repository
-            .set_image_path(id, farm_id, &relative_path)
+            .set_image_path(id, business_id, &relative_path)
             .await
     }
 

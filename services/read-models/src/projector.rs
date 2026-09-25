@@ -6,7 +6,7 @@ use std::{sync::{Arc, atomic::{AtomicBool, Ordering}}, time::Duration};
 
 pub fn valid(event: &IntegrationEvent) -> bool {
     let known = match event.source.as_str() {
-        "auth" => matches!(event.entity_type.as_str(), "users" | "farms"),
+        "auth" => matches!(event.entity_type.as_str(), "users" | "businesses"),
         "products" => event.entity_type == "products",
         "raw-materials" => event.entity_type == "raw_materials",
         "productions" => matches!(event.entity_type.as_str(), "production_batches" | "process_steps" | "batch_raw_materials"),

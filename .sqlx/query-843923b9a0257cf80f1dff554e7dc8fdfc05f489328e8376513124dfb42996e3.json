@@ -25,7 +25,7 @@
       },
       {
         "ordinal": 4,
-        "name": "farm_id",
+        "name": "business_id",
         "type_info": "Uuid"
       },
       {

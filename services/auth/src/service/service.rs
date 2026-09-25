@@ -27,8 +27,8 @@ impl AuthService {
     }
 
     pub async fn register_user(&self, payload: RegisterRequest) -> Result<String, AppError> {
-        if !matches!(payload.role.as_deref().unwrap_or("CUSTOMER"), "CUSTOMER" | "FARM_OWNER") {
-            return Err(AppError::Forbidden("Only customer and farm owner self-registration is allowed".into()));
+        if !matches!(payload.role.as_deref().unwrap_or("CUSTOMER"), "CUSTOMER" | "BUSINESS_OWNER") {
+            return Err(AppError::Forbidden("Only customer and business owner self-registration is allowed".into()));
         }
         if self
             .user_repo
@@ -55,7 +55,7 @@ impl AuthService {
             id,
             email: payload.email.clone(),
             password_hash,
-            farm_id: None,
+            business_id: None,
             role: role.clone(),
             first_name: payload.first_name,
             last_name: payload.last_name,
@@ -76,13 +76,13 @@ impl AuthService {
         id: Uuid,
         email: &str,
         role: &Role,
-        farm_id: Option<Uuid>,
+        business_id: Option<Uuid>,
     ) -> Result<String, AppError> {
         let claims = Claims {
             sub: id,
             email: email.to_string(),
             role: role.as_str().to_string(),
-            farm_id,
+            business_id,
             exp: (Utc::now().timestamp() + 3600) as usize,
             iat: Utc::now().timestamp() as usize,
         };
@@ -106,7 +106,7 @@ impl AuthService {
             .verify_password(payload.password.as_bytes(), &parsed_hash)
             .map_err(|_| AppError::Unauthorized("Invalid email or password".into()))?;
 
-        self.issue_token(user.id, &user.email, &user.role, user.farm_id)
+        self.issue_token(user.id, &user.email, &user.role, user.business_id)
     }
 
     pub async fn get_user(&self, user_id: Uuid) -> Result<User, AppError> {

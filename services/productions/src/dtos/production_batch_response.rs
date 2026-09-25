@@ -7,7 +7,7 @@ use uuid::Uuid;
 #[derive(Debug, Serialize)]
 pub struct ProductionBatchResponse {
     pub id: Uuid,
-    pub farm_id: Uuid,
+    pub business_id: Uuid,
     pub name: String,
     pub start_date: Option<String>, // ISO string for easy JSON
     pub end_date: Option<String>,

@@ -31,10 +31,10 @@ impl StepService {
         }
     }
 
-    pub async fn list(&self, batch_id: Uuid, farm_id: Uuid) -> AppResult<ProductionBatchResponse> {
+    pub async fn list(&self, batch_id: Uuid, business_id: Uuid) -> AppResult<ProductionBatchResponse> {
         let batch = self
             .batch_repository
-            .find_by_id_and_farm(batch_id, farm_id)
+            .find_by_id_and_business(batch_id, business_id)
             .await?;
         self.batch_service.assemble_detail(batch).await
     }
@@ -42,12 +42,12 @@ impl StepService {
     pub async fn add(
         &self,
         batch_id: Uuid,
-        farm_id: Uuid,
+        business_id: Uuid,
         mut req: CreateProcessStepRequest,
     ) -> AppResult<ProcessStep> {
         let batch = self
             .batch_repository
-            .find_by_id_and_farm(batch_id, farm_id)
+            .find_by_id_and_business(batch_id, business_id)
             .await?;
 
         if batch.status == "COMPLETED" || batch.status == "CANCELLED" {
@@ -78,7 +78,7 @@ impl StepService {
             .insert(InsertStepParams {
                 id: Uuid::new_v4(),
                 batch_id,
-                farm_id,
+                business_id,
                 step_order: req.step_order,
                 name: req.name.trim().to_string(),
                 description: req.description,
@@ -92,12 +92,12 @@ impl StepService {
         &self,
         batch_id: Uuid,
         step_id: Uuid,
-        farm_id: Uuid,
+        business_id: Uuid,
         mut req: UpdateProcessStepRequest,
     ) -> AppResult<ProcessStep> {
         let batch = self
             .batch_repository
-            .find_by_id_and_farm(batch_id, farm_id)
+            .find_by_id_and_business(batch_id, business_id)
             .await?;
         if batch.status == "COMPLETED" || batch.status == "CANCELLED" {
             return Err(AppError::BadRequest(
@@ -162,10 +162,10 @@ impl StepService {
             .await
     }
 
-    pub async fn delete(&self, batch_id: Uuid, step_id: Uuid, farm_id: Uuid) -> AppResult<()> {
+    pub async fn delete(&self, batch_id: Uuid, step_id: Uuid, business_id: Uuid) -> AppResult<()> {
         let batch = self
             .batch_repository
-            .find_by_id_and_farm(batch_id, farm_id)
+            .find_by_id_and_business(batch_id, business_id)
             .await?;
         if batch.status == "COMPLETED" || batch.status == "CANCELLED" {
             return Err(AppError::BadRequest(

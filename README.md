@@ -61,14 +61,14 @@ Ova generalizacija omogućava da isti sistem može da koristi veliki broj razli�
 
 ### Izolacija podataka i uloge
 
-Sistem je dizajniran kao multi-tenant platforma sa striktnom izolacijom podataka. Svaki korisnik tipa FarmOwner (vlasnik gazdinstva) i WORKER (radnik) je vezan za tačno jedno gazdinstvo, dok svi entiteti vezani za proizvodnju (sirovine, procesi, proizvodi, porudžbine) sadrže farm_id.
+Sistem je dizajniran kao multi-tenant platforma sa striktnom izolacijom podataka. Svaki korisnik tipa BusinessOwner (vlasnik gazdinstva) i WORKER (radnik) je vezan za tačno jedno gazdinstvo, dok svi entiteti vezani za proizvodnju (sirovine, procesi, proizvodi, porudžbine) sadrže business_id.
 
 Na osnovu identiteta korisnika i njegove uloge:
-- FarmOwner i WORKER mogu pristupati isključivo podacima svog gazdinstva.
+- BusinessOwner i WORKER mogu pristupati isključivo podacima svog gazdinstva.
 - CUSTOMER ima pristup javno dostupnim informacijama svih gazdinstava (npr. pregled proizvoda i porekla).
 - SystemAdmin ima globalni uvid u podatke svih gazdinstava.
 
-Filtriranje po farm_id se sprovodi na nivou svakog upita prema bazi, čime se garantuje potpuna izolacija podataka i sprečava bilo kakvo mešanje informacija između različitih proizvođača.
+Filtriranje po business_id se sprovodi na nivou svakog upita prema bazi, čime se garantuje potpuna izolacija podataka i sprečava bilo kakvo mešanje informacija između različitih proizvođača.
 
 Ovakav pristup omogućava da Local Bite funkcioniše kao jedinstvena platforma za veliki broj nezavisnih proizvođača, uz visok nivo bezbednosti, privatnosti i skalabilnosti.
 
@@ -99,7 +99,7 @@ Funkcionalnosti:
 * JWT tokeni  
 * Uloge:
   - SystemAdmin – administrator platforme
-  - FarmOwner – vlasnik gazdinstva
+  - BusinessOwner – vlasnik gazdinstva
   - WORKER – zaposleni
   - CUSTOMER – krajnji korisnik
 

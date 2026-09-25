@@ -8,13 +8,13 @@ mod service;
 
 use crate::db::create_pool;
 use crate::handlers::auth::{login, register};
-use crate::handlers::farms::{
-    add_worker, create_farm, delete_farm, get_farm, list_workers, list_farms, update_farm,
+use crate::handlers::businesses::{
+    add_worker, create_business, delete_business, get_business, list_workers, list_businesses, update_business,
 };
 use crate::handlers::users::{delete_user, list_users, me, update_user};
 use crate::middleware::auth_middleware::auth_middleware;
-use crate::repository::farm_repository::FarmRepository;
-use crate::service::farm_service::FarmService;
+use crate::repository::business_repository::BusinessRepository;
+use crate::service::business_service::BusinessService;
 use crate::service::service::AuthService;
 use crate::service::user_service::UserService;
 use axum::middleware::from_fn;
@@ -41,9 +41,9 @@ async fn main() -> anyhow::Result<()> {
     common::events::start_outbox(pool.clone(), "auth");
     let user_repo = Arc::new(repository::repository::UserRepository::new(pool.clone()));
     let auth_service = Arc::new(AuthService::new(user_repo.clone(), jwt_secret.clone()));
-    let farm_repo = Arc::new(FarmRepository::new(pool));
-    let farm_service = Arc::new(FarmService::new(
-        farm_repo.clone(),
+    let business_repo = Arc::new(BusinessRepository::new(pool));
+    let business_service = Arc::new(BusinessService::new(
+        business_repo.clone(),
         user_repo.clone(),
         jwt_secret.clone(),
     ));
@@ -64,13 +64,13 @@ async fn main() -> anyhow::Result<()> {
         .route("/users", get(list_users))
         .route("/users/{id}", put(update_user))
         .route("/users/{id}", delete(delete_user))
-        .route("/farms", post(create_farm).get(list_farms))
-        .route("/farms/{id}", get(get_farm))
-        .route("/farms/{id}/trace", get(crate::handlers::farms::trace_farm))
-        .route("/farms/{id}", put(update_farm))
-        .route("/farms/{id}", delete(delete_farm))
-        .route("/farms/{id}/workers", post(add_worker))
-        .route("/farms/{id}/workers", get(list_workers))
+        .route("/businesses", post(create_business).get(list_businesses))
+        .route("/businesses/{id}", get(get_business))
+        .route("/businesses/{id}/trace", get(crate::handlers::businesses::trace_business))
+        .route("/businesses/{id}", put(update_business))
+        .route("/businesses/{id}", delete(delete_business))
+        .route("/businesses/{id}/workers", post(add_worker))
+        .route("/businesses/{id}/workers", get(list_workers))
         .route_layer(from_fn(auth_middleware));
 
     let app = Router::new()
@@ -81,7 +81,7 @@ async fn main() -> anyhow::Result<()> {
         .layer(cors)
         .layer(Extension(auth_service))
         .layer(Extension(user_service))
-        .layer(Extension(farm_service));
+        .layer(Extension(business_service));
 
     let port = std::env::var("PORT").unwrap_or_else(|_| "8080".to_string());
     let addr = format!("0.0.0.0:{}", port);

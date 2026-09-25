@@ -3,21 +3,21 @@ $repoRoot = Split-Path $PSScriptRoot -Parent
 
 # Test in a transaction and isolated schema; leave application data unchanged.
 $catalogFixture = @'
-INSERT INTO type_catalog (farm_id, name) VALUES ('00000000-0000-0000-0000-000000000001', 'Custom type')
-ON CONFLICT (farm_id, lower(name)) WHERE farm_id IS NOT NULL
+INSERT INTO type_catalog (business_id, name) VALUES ('00000000-0000-0000-0000-000000000001', 'Custom type')
+ON CONFLICT (business_id, lower(name)) WHERE business_id IS NOT NULL
 DO UPDATE SET name = type_catalog.name;
-INSERT INTO type_catalog (farm_id, name) VALUES ('00000000-0000-0000-0000-000000000001', 'CUSTOM TYPE')
-ON CONFLICT (farm_id, lower(name)) WHERE farm_id IS NOT NULL
+INSERT INTO type_catalog (business_id, name) VALUES ('00000000-0000-0000-0000-000000000001', 'CUSTOM TYPE')
+ON CONFLICT (business_id, lower(name)) WHERE business_id IS NOT NULL
 DO UPDATE SET name = type_catalog.name;
-INSERT INTO type_catalog (farm_id, name) VALUES ('00000000-0000-0000-0000-000000000002', 'Other farm type');
+INSERT INTO type_catalog (business_id, name) VALUES ('00000000-0000-0000-0000-000000000002', 'Other business type');
 DO $$ BEGIN
-    IF (SELECT count(*) FROM type_catalog WHERE farm_id = '00000000-0000-0000-0000-000000000001' AND lower(name) = 'custom type') <> 1 THEN
+    IF (SELECT count(*) FROM type_catalog WHERE business_id = '00000000-0000-0000-0000-000000000001' AND lower(name) = 'custom type') <> 1 THEN
         RAISE EXCEPTION 'Duplicate type was created';
     END IF;
-    IF EXISTS (SELECT 1 FROM type_catalog WHERE (farm_id IS NULL OR farm_id = '00000000-0000-0000-0000-000000000001') AND name = 'Other farm type') THEN
-        RAISE EXCEPTION 'Farm type isolation failed';
+    IF EXISTS (SELECT 1 FROM type_catalog WHERE (business_id IS NULL OR business_id = '00000000-0000-0000-0000-000000000001') AND name = 'Other business type') THEN
+        RAISE EXCEPTION 'Business type isolation failed';
     END IF;
-    IF NOT EXISTS (SELECT 1 FROM type_catalog WHERE farm_id = '00000000-0000-0000-0000-000000000001' AND name = 'Legacy custom') THEN
+    IF NOT EXISTS (SELECT 1 FROM type_catalog WHERE business_id = '00000000-0000-0000-0000-000000000001' AND name = 'Legacy custom') THEN
         RAISE EXCEPTION 'Legacy type missing';
     END IF;
 END $$;
@@ -30,6 +30,7 @@ foreach ($service in @('productions', 'raw-materials')) {
     $sql += "CREATE TABLE $table (farm_id UUID, $column TEXT);`n"
     $sql += "INSERT INTO $table VALUES ('00000000-0000-0000-0000-000000000001', 'Legacy custom');`n"
     $sql += Get-Content -Raw -LiteralPath (Join-Path $repoRoot "services/$service/migrations/20260924000000_type_catalog.sql")
+    $sql += "ALTER TABLE $table RENAME COLUMN farm_id TO business_id; ALTER TABLE type_catalog RENAME COLUMN farm_id TO business_id;`n"
     $sql += $catalogFixture
     if ($service -eq 'productions') {
         $sql += @'

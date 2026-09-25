@@ -17,7 +17,7 @@ pub async fn me(
     Extension(_id): Extension<Uuid>,
 ) -> Result<impl IntoResponse, AppError> {
     let user = _auth_service.get_user(_id).await?;
-    let token = _auth_service.issue_token(user.id, &user.email, &user.role, user.farm_id)?;
+    let token = _auth_service.issue_token(user.id, &user.email, &user.role, user.business_id)?;
     Ok(([("x-session-token", token)], Json(user)))
 }
 

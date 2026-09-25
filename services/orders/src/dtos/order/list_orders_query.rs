@@ -3,7 +3,7 @@ use uuid::Uuid;
 
 #[derive(Debug, Deserialize)]
 pub struct ListOrdersQuery {
-    pub farm_id: Option<Uuid>,
+    pub business_id: Option<Uuid>,
     pub page: Option<i64>,
     pub limit: Option<i64>,
     pub status: Option<String>,

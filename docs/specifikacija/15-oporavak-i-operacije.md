@@ -15,7 +15,7 @@ Autoritativni skup čine pet write baza, `read_models` baza i `products_uploads`
 3. Proveriti manifest i SHA-256.
 4. Vratiti write baze i uploads.
 5. Vratiti read-model ili napraviti praznu bazu i izvršiti `Replay-Events.ps1` do praznog backlog-a.
-6. Proveriti health, pending outbox, DLQ, farm scope, javni trag i checkout/cancel smoke test.
+6. Proveriti health, pending outbox, DLQ, business scope, javni trag i checkout/cancel smoke test.
 7. Otvoriti write saobraćaj.
 
 Individualni `pg_dump` nije globalni atomski snapshot. Za strogi cross-service RPO koristi se write freeze ili infrastrukturni PITR checkpoint.

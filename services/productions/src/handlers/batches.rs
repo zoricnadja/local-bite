@@ -13,7 +13,7 @@ use crate::models::query::ListQuery;
 use crate::services::batch_service::BatchService;
 use common::{
     errors::AppResult,
-    middleware::{require_farm, require_role, AuthClaims},
+    middleware::{require_business, require_role, AuthClaims},
     response::{created, no_content, ok},
 };
 // ── GET /batches ──────────────────────────────────────────────────────────────
@@ -23,9 +23,9 @@ pub async fn list(
     Query(_q): Query<ListQuery>,
     Extension(_batch_service): Extension<Arc<BatchService>>,
 ) -> AppResult<Response> {
-    require_role(&_claims, &["FARM_OWNER", "WORKER"])?;
-    let farm_id = require_farm(&_claims)?;
-    Ok(ok(_batch_service.list(farm_id, &_q).await?))
+    require_role(&_claims, &["BUSINESS_OWNER", "WORKER"])?;
+    let business_id = require_business(&_claims)?;
+    Ok(ok(_batch_service.list(business_id, &_q).await?))
 }
 
 // ── POST /batches ─────────────────────────────────────────────────────────────
@@ -36,10 +36,10 @@ pub async fn create(
     Extension(_batch_service): Extension<Arc<BatchService>>,
     Json(_req): Json<CreateProductionBatchRequest>,
 ) -> AppResult<Response> {
-    require_role(&_claims, &["FARM_OWNER", "WORKER"])?;
-    let farm_id = require_farm(&_claims)?;
+    require_role(&_claims, &["BUSINESS_OWNER", "WORKER"])?;
+    let business_id = require_business(&_claims)?;
     let token = extract_token(&headers);
-    Ok(created(_batch_service.create(farm_id, _req, &token).await?))
+    Ok(created(_batch_service.create(business_id, _req, &token).await?))
 }
 
 // ── GET /batches/:id ──────────────────────────────────────────────────────────
@@ -49,9 +49,9 @@ pub async fn get_one(
     Path(_id): Path<Uuid>,
     Extension(_batch_service): Extension<Arc<BatchService>>,
 ) -> AppResult<Response> {
-    require_role(&_claims, &["FARM_OWNER", "WORKER"])?;
-    let farm_id = require_farm(&_claims)?;
-    Ok(ok(_batch_service.get_one(_id, farm_id).await?))
+    require_role(&_claims, &["BUSINESS_OWNER", "WORKER"])?;
+    let business_id = require_business(&_claims)?;
+    Ok(ok(_batch_service.get_one(_id, business_id).await?))
 }
 
 // ── PUT /batches/:id ──────────────────────────────────────────────────────────
@@ -65,7 +65,7 @@ pub async fn trace(
     if claims.sub != id {
         return Err(common::errors::AppError::Forbidden("Traceability scope mismatch".into()));
     }
-    Ok(ok(service.get_one(id, require_farm(&claims)?).await?))
+    Ok(ok(service.get_one(id, require_business(&claims)?).await?))
 }
 
 pub async fn update(
@@ -74,9 +74,9 @@ pub async fn update(
     Extension(_batch_service): Extension<Arc<BatchService>>,
     Json(_req): Json<UpdateProductionBatchRequest>,
 ) -> AppResult<Response> {
-    require_role(&_claims, &["FARM_OWNER", "WORKER"])?;
-    let farm_id = require_farm(&_claims)?;
-    Ok(ok(_batch_service.update(_id, farm_id, _req).await?))
+    require_role(&_claims, &["BUSINESS_OWNER", "WORKER"])?;
+    let business_id = require_business(&_claims)?;
+    Ok(ok(_batch_service.update(_id, business_id, _req).await?))
 }
 
 // ── DELETE /batches/:id ───────────────────────────────────────────────────────
@@ -86,9 +86,9 @@ pub async fn delete(
     Path(_id): Path<Uuid>,
     Extension(_batch_service): Extension<Arc<BatchService>>,
 ) -> AppResult<Response> {
-    require_role(&_claims, &["FARM_OWNER"])?;
-    let farm_id = require_farm(&_claims)?;
-    _batch_service.delete(_id, farm_id).await?;
+    require_role(&_claims, &["BUSINESS_OWNER"])?;
+    let business_id = require_business(&_claims)?;
+    _batch_service.delete(_id, business_id).await?;
     Ok(no_content())
 }
 

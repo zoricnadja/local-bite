@@ -9,5 +9,5 @@ pub struct NewOrderItem {
     pub unit_price: BigDecimal,
     pub quantity: BigDecimal,
     pub unit: String,
-    pub farm_id: Uuid,
+    pub business_id: Uuid,
 }

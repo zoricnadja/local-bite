@@ -47,7 +47,7 @@ Trajni podaci su u šest DB volumena, `rabbitmq_data` i `products_uploads`. Obi�
 | `RABBITMQ_URL` | AMQP URL koji koristi common connect |
 | `RAW_MATERIALS_SERVICE_URL` | Productions HTTP baza za sirovine |
 | `PRODUCTS_SERVICE_URL` | Orders HTTP baza za proizvode |
-| `AUTH_SERVICE_URL` | Orders profile fetch i preostali products farm helper; fallback auth-service:3001 |
+| `AUTH_SERVICE_URL` | Orders profile fetch i preostali products business helper; fallback auth-service:3001 |
 | `PRODUCTION_SERVICE_URL` | Products provera serije; jednina u imenu promenljive, fallback productions-service:3004 |
 | `READ_MODELS_URL` | Products provenance query, fallback read-models-service:3006 |
 | `PUBLIC_TRACE_URL` | Pun javni prefiks uključujući `/trace`; fallback http://localhost/trace |

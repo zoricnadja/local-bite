@@ -22,7 +22,7 @@ class CertificateTests(unittest.TestCase):
         self.assertEqual(module.CertificateDirector().build({"product": {}, "batch": {}}, RecordingBuilder()), ["product", "production", "materials", "disclaimer"])
 
     def test_public_unicode_and_long_content(self):
-        data = {"product": {"name": "Sir Đorđević <&>", "product_type": "dairy", "qr_token": "test", "description": "Čačak Šumadija " * 100}, "farm_name": "Farma Đorđević", "batch": {"name": "Serija", "process_type": "fermentation", "status": "COMPLETED", "steps": [], "raw_materials": [{"name": "Mleko <&>", "origin": "Šumadija"}] * 50}}
+        data = {"product": {"name": "Sir Đorđević <&>", "product_type": "dairy", "qr_token": "test", "description": "Čačak Šumadija " * 100}, "business_name": "Radionica Đorđević", "batch": {"name": "Serija", "process_type": "fermentation", "status": "COMPLETED", "steps": [], "raw_materials": [{"name": "Mleko <&>", "origin": "Šumadija"}] * 50}}
         pdf = module.render(data)
         self.assertTrue(pdf.startswith(b"%PDF-"))
         self.assertGreater(len(pdf), 1000)

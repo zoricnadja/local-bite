@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE orders SET is_deleted = TRUE WHERE id = $1 AND business_id = $2 AND is_deleted = FALSE",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "e98fb7141a10794f4b2a876a5cad90c8afeb42bb022a9c36ac53bac0e50002d8"
+}

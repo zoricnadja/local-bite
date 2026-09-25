@@ -4,7 +4,7 @@ const {execFileSync}=require('node:child_process');
 const run=crypto.randomUUID(), password=crypto.randomUUID();
 const emails=[`cqrs-owner-${run}@example.invalid`,`cqrs-customer-${run}@example.invalid`];
 const settings=Object.fromEntries(fs.readFileSync('.env','utf8').split(/\r?\n/).filter(s=>/^[A-Z_]+=/.test(s)).map(s=>{const i=s.indexOf('=');return [s.slice(0,i),s.slice(i+1).replace(/^['"]|['"]$/g,'')]}));
-let farm, product, brokerStopped=false;
+let business, product, brokerStopped=false;
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 function docker(args) {return execFileSync('docker',args,{encoding:'utf8',stdio:['ignore','pipe','pipe'],timeout:60000}).trim();}
 function sql(service,query) {return docker(['exec',`${service}-db`,'psql','-U',settings.POSTGRES_USER||'postgres','-d',service.replaceAll('-','_')+'_db','-At','-v','ON_ERROR_STOP=1','-c',query]);}
@@ -21,13 +21,13 @@ async function publish(event){
  assert.equal(res.status,200);assert.equal((await res.json()).routed,true);
 }
 async function main(){try{
- const oldOwner=await register(0,'FARM_OWNER'), customer=await register(1,'CUSTOMER');
- const created=data(await request('/auth/farms','POST',{name:'CQRS test farm',address:'Test'},oldOwner),201);farm=created.farm.id;const owner=created.token;
+ const oldOwner=await register(0,'BUSINESS_OWNER'), customer=await register(1,'CUSTOMER');
+ const created=data(await request('/auth/businesses','POST',{name:'CQRS test business',address:'Test'},oldOwner),201);business=created.business.id;const owner=created.token;
  const material=data(await request('/raw-materials','POST',{name:'CQRS milk',material_type:'dairy',quantity:20,unit:'l',low_stock_threshold:30,received_date:'2026-09-14',expiry_date:'2026-09-30'},owner),201);
  const batch=data(await request('/productions/batches','POST',{name:'CQRS batch',process_type:'fermentation',raw_materials:[{raw_material_id:material.id,quantity_used:5,unit:'l'}]},owner),201);
  data(await request('/productions/batches/'+batch.id,'PUT',{status:'IN_PROGRESS'},owner));
  data(await request('/productions/batches/'+batch.id,'PUT',{status:'COMPLETED',end_date:'2026-09-17',output_name:'CQRS cheese',output_type:'dairy',output_quantity:10,output_unit:'kg',output_expiry_date:'2026-10-01'},owner));
- product=await until('production output',async()=>data(await request('/products/farm','GET',undefined,owner)).data.find(p=>p.batch_id===batch.id));
+ product=await until('production output',async()=>data(await request('/products/business','GET',undefined,owner)).data.find(p=>p.batch_id===batch.id));
  product=data(await request('/products/'+product.id,'PUT',{price:8,is_active:true},owner));
  const orders=data(await request('/orders','POST',{items:[{product_id:product.id,quantity:2}]},customer),201).orders;
  assert.equal(orders.length,1);
@@ -62,19 +62,19 @@ async function main(){try{
  // Query model remains sufficient while the producer services are unreachable.
  let paused=false;
  try {docker(['compose','stop','auth-service','productions-service','raw-materials-service']);paused=true;
-  const trace=await request(`/products/public/${product.qr_token}`);assert.equal(trace.status,200,trace.text);assert.equal(trace.json.data.farm_name,'CQRS test farm');assert.equal(trace.json.data.batch.raw_materials[0].quantity_used,undefined);
+  const trace=await request(`/products/public/${product.qr_token}`);assert.equal(trace.status,200,trace.text);assert.equal(trace.json.data.business_name,'CQRS test business');assert.equal(trace.json.data.batch.raw_materials[0].quantity_used,undefined);
   assert.equal(data(await request('/queries/dashboard','GET',undefined,owner)).stats.revenue,16);
  } finally {if(paused)docker(['compose','start','auth-service','productions-service','raw-materials-service']);}
  console.log('PASS: all five publishers, CQRS trace/dashboard, isolation, transactional rollback, duplicates, out-of-order delivery, broker outage recovery and independent queries.');
 }catch(error){console.error(error.stack);throw error;}finally{
  if(brokerStopped)docker(['compose','start','rabbitmq']);
  if(product?.qr_path&&/^qr\/[a-zA-Z0-9_-]+\.png$/.test(product.qr_path))docker(['exec','products-service','python3','-c','import pathlib,sys;pathlib.Path("/app/uploads",sys.argv[1]).unlink(missing_ok=True)',product.qr_path]);
- if(farm){
-  sql('orders',`DELETE FROM orders WHERE farm_id='${farm}'; DELETE FROM checkout_jobs WHERE payload->'lines' @> '[{"farm_id":"${farm}"}]'::jsonb;`);
-  sql('products',`WITH removed AS (DELETE FROM stock_reservation_items WHERE farm_id='${farm}' RETURNING reservation_id) DELETE FROM stock_reservations WHERE id IN (SELECT reservation_id FROM removed); DELETE FROM production_outputs WHERE product_id IN (SELECT id FROM products WHERE farm_id='${farm}'); DELETE FROM products WHERE farm_id='${farm}'; DELETE FROM production_states WHERE farm_id='${farm}';`);
-  sql('productions',`DELETE FROM production_batches WHERE farm_id='${farm}';`);
-  sql('raw-materials',`DELETE FROM production_consumption WHERE farm_id='${farm}';DELETE FROM raw_materials WHERE farm_id='${farm}';`);
-  sql('auth',`UPDATE users SET farm_id=NULL WHERE farm_id='${farm}';DELETE FROM farms WHERE id='${farm}';`);
+ if(business){
+  sql('orders',`DELETE FROM orders WHERE business_id='${business}'; DELETE FROM checkout_jobs WHERE payload->'lines' @> '[{"business_id":"${business}"}]'::jsonb;`);
+  sql('products',`WITH removed AS (DELETE FROM stock_reservation_items WHERE business_id='${business}' RETURNING reservation_id) DELETE FROM stock_reservations WHERE id IN (SELECT reservation_id FROM removed); DELETE FROM production_outputs WHERE product_id IN (SELECT id FROM products WHERE business_id='${business}'); DELETE FROM products WHERE business_id='${business}'; DELETE FROM production_states WHERE business_id='${business}';`);
+  sql('productions',`DELETE FROM production_batches WHERE business_id='${business}';`);
+  sql('raw-materials',`DELETE FROM production_consumption WHERE business_id='${business}';DELETE FROM raw_materials WHERE business_id='${business}';`);
+  sql('auth',`UPDATE users SET business_id=NULL WHERE business_id='${business}';DELETE FROM businesses WHERE id='${business}';`);
  }
  sql('auth',`DELETE FROM users WHERE email IN ('${emails[0]}','${emails[1]}');`);
  console.log('Removed CQRS fixtures.');

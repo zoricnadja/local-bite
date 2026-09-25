@@ -68,7 +68,7 @@ class ReportLabCertificateBuilder(CertificateBuilder):
         if product.get('description'):
             self.story += [self.p(product['description']), Spacer(1, 12)]
         self.story += [self.fields([
-            ('Producer', data.get('farm_name') or 'Information unavailable'),
+            ('Producer', data.get('business_name') or 'Information unavailable'),
             ('Product type', product['product_type']), ('Product expiry', product.get('expiry_date')),
             ('Traceability ID', product['qr_token']),
         ])]
@@ -110,7 +110,7 @@ class ReportLabCertificateBuilder(CertificateBuilder):
         canvas.setFillColor(colors.white)
         canvas.drawString(56, 805, 'LOCAL BITE')
         canvas.setFont('LocalBite', 8)
-        canvas.drawRightString(539, 807, 'FROM FARM TO TABLE')
+        canvas.drawRightString(539, 807, 'FROM BUSINESS TO TABLE')
         canvas.setStrokeColor(LINE)
         canvas.line(56, 48, 539, 48)
         canvas.setFillColor(MUTED)

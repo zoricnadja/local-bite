@@ -2,11 +2,11 @@
 use crate::{errors::{AppError, AppResult}, jwt::{Claims, encode_jwt}};
 use uuid::Uuid;
 
-pub fn token(role: &str, operation: Uuid, farm: Option<Uuid>) -> AppResult<String> {
+pub fn token(role: &str, operation: Uuid, business: Option<Uuid>) -> AppResult<String> {
     let now = chrono::Utc::now().timestamp() as usize;
     let secret = std::env::var("JWT_SECRET").map_err(|e| AppError::Internal(e.into()))?;
     Ok(encode_jwt(&Claims { sub: operation, email: String::new(), role: role.into(),
-        farm_id: farm, iat: now, exp: now + 60 }, &secret)?)
+        business_id: business, iat: now, exp: now + 60 }, &secret)?)
 }
 
 pub fn require(claims: &Claims, role: &str, operation: Uuid) -> AppResult<()> {

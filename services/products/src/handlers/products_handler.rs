@@ -16,24 +16,24 @@ use crate::services::product_service::ProductService;
 use crate::services::provenance_service::ProvenanceService;
 use common::{
     errors::AppResult,
-    middleware::{require_farm, require_role, AuthClaims},
+    middleware::{require_business, require_role, AuthClaims},
     response::{created, no_content, ok},
 };
-// ── GET /products/farm ─────────────────────────────────────────────────────────────
+// ── GET /products/business ─────────────────────────────────────────────────────────────
 
 #[debug_handler]
-pub async fn list_by_farm(
+pub async fn list_by_business(
     AuthClaims(_claims): AuthClaims,
     Query(mut _q): Query<ListQuery>,
     Extension(_product_service): Extension<Arc<ProductService>>,
 ) -> AppResult<Response> {
     require_role(
         &_claims,
-        &["FARM_OWNER", "WORKER", "SYSTEM_ADMIN", "CUSTOMER"],
+        &["BUSINESS_OWNER", "WORKER", "SYSTEM_ADMIN", "CUSTOMER"],
     )?;
-    let farm_id = require_farm(&_claims)?;
+    let business_id = require_business(&_claims)?;
 
-    let result = _product_service.find_all_by_farm_id(farm_id, &_q).await?;
+    let result = _product_service.find_all_by_business_id(business_id, &_q).await?;
     Ok(ok(result))
 }
 
@@ -62,11 +62,11 @@ pub async fn create(
 ) -> AppResult<Response> {
     require_role(
         &_claims,
-        &["FARM_OWNER", "WORKER"],
+        &["BUSINESS_OWNER", "WORKER"],
     )?;
-    let farm_id = require_farm(&_claims)?;
+    let business_id = require_business(&_claims)?;
 
-    let product = _product_service.create(farm_id, _req).await?;
+    let product = _product_service.create(business_id, _req).await?;
     Ok(created(product))
 }
 
@@ -80,7 +80,7 @@ pub async fn get_one(
 ) -> AppResult<Response> {
     require_role(
         &_claims,
-        &["FARM_OWNER", "WORKER", "SYSTEM_ADMIN", "CUSTOMER"],
+        &["BUSINESS_OWNER", "WORKER", "SYSTEM_ADMIN", "CUSTOMER"],
     )?;
 
     let product = _product_service.get_one(_id).await?;
@@ -100,11 +100,11 @@ pub async fn provenance(
 ) -> AppResult<Response> {
     require_role(
         &_claims,
-        &["FARM_OWNER", "WORKER", "CUSTOMER", "SYSTEM_ADMIN"],
+        &["BUSINESS_OWNER", "WORKER", "CUSTOMER", "SYSTEM_ADMIN"],
     )?;
     let product = product_service.get_one(_id).await?;
     crate::services::product_service::authorize_read(&product, &_claims)?;
-    let farm_id = product.farm_id;
+    let business_id = product.business_id;
 
     let token = _headers
         .get("authorization")
@@ -113,7 +113,7 @@ pub async fn provenance(
         .unwrap_or_default();
 
     let result = _provenance_service
-        .get_provenance(_id, farm_id, token)
+        .get_provenance(_id, business_id, token)
         .await?;
     Ok(ok(result))
 }
@@ -129,11 +129,11 @@ pub async fn update(
 ) -> AppResult<Response> {
     require_role(
         &_claims,
-        &["FARM_OWNER", "WORKER"],
+        &["BUSINESS_OWNER", "WORKER"],
     )?;
-    let farm_id = require_farm(&_claims)?;
+    let business_id = require_business(&_claims)?;
 
-    let updated = _product_service.update(_id, farm_id, req).await?;
+    let updated = _product_service.update(_id, business_id, req).await?;
     Ok(ok(updated))
 }
 
@@ -145,9 +145,9 @@ pub async fn delete(
     Path(_id): Path<Uuid>,
     Extension(_product_service): Extension<Arc<ProductService>>,
 ) -> AppResult<Response> {
-    require_role(&_claims, &["FARM_OWNER"])?;
-    let farm_id = require_farm(&_claims)?;
+    require_role(&_claims, &["BUSINESS_OWNER"])?;
+    let business_id = require_business(&_claims)?;
 
-    _product_service.delete(_id, farm_id).await?;
+    _product_service.delete(_id, business_id).await?;
     Ok(no_content())
 }

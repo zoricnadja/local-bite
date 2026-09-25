@@ -10,7 +10,7 @@ Frontend se nalazi u `frontend/local-bite-frontend`. `src/main.ts` pokreće Angu
 |---|---|
 | `core/auth` | Sesija, guards, permission matrica, appCan direktiva |
 | `core/interceptors` | Dodavanje JWT zaglavlja |
-| `core/services` | API adapteri za korisnike, farmu, sirovine, proizvodnju, proizvode, porudžbine i proizvođače |
+| `core/services` | API adapteri za korisnike, firmu, sirovine, proizvodnju, proizvode, porudžbine i proizvođače |
 | `features` | Ekrani grupisani po poslovnoj oblasti |
 | `shared/models` | TypeScript ugovori i statusne konstante |
 | `shared/form-validators.ts` | Zajednička validacija |
@@ -26,11 +26,11 @@ Nema zasebnog frontend mikroservisa po domenu: radi se o jednoj SPA sa lazy feat
 |---|---|---|
 | `/auth/login` | LoginComponent | Prijava, token, učitavanje profila |
 | `/auth/register` | RegisterComponent | Kreiranje naloga uz profilna polja |
-| `/profile` | ProfileComponent | Profil, podaci farme, uređivanje, potvrda brisanja |
+| `/profile` | ProfileComponent | Profil, podaci firme, uređivanje, potvrda brisanja |
 | `/dashboard` | DashboardComponent | Sažetak prema ulozi, niska zaliha, aktivne/planirane serije ili kupčeve porudžbine |
-| `/farm/create` | CreateFarmComponent | Kreiranje gazdinstva i usklađivanje tokena |
-| `/farm/workers` | WorkersListComponent | Pregled zaposlenih |
-| `/farm/workers/add` | AddWorkerComponent | Registracija radnika za farmu |
+| `/business/create` | CreateBusinessComponent | Kreiranje gazdinstva i usklađivanje tokena |
+| `/business/workers` | WorkersListComponent | Pregled zaposlenih |
+| `/business/workers/add` | AddWorkerComponent | Registracija radnika za firmu |
 | `/raw-materials` | RawMaterialsListComponent | Lista, pretraga, filtriranje, paginacija, korekcija zalihe i brisanje |
 | `/raw-materials/new` | RawMaterialFormComponent | Unos sirovine |
 | `/raw-materials/:id/edit` | Ista forma | Izmena postojeće sirovine |
@@ -42,7 +42,7 @@ Nema zasebnog frontend mikroservisa po domenu: radi se o jednoj SPA sa lazy feat
 | `/products/new` | Redirect | Preusmerava na `/production/new` |
 | `/products/:id/edit` | ProductFormComponent | Cena, opis, aktivnost, rok i ostali dozvoljeni podaci |
 | `/products/:id` | ProductDetailComponent | Podaci proizvoda, slika, QR i poreklo |
-| `/orders` | OrdersListComponent | Farm lista ili kupčeve porudžbine, filteri |
+| `/orders` | OrdersListComponent | Business lista ili kupčeve porudžbine, filteri |
 | `/orders/new` | OrderFormComponent | Izbor proizvoda, korpa i kreiranje porudžbine |
 | `/orders/:id` | OrderDetailComponent | Stavke, ukupni iznos i dozvoljene promene statusa |
 | `/orders/analytics` | OrdersAnalyticsComponent | Prihod, statusi, top proizvodi i mesečna tabela |
@@ -52,9 +52,9 @@ Prazna/nepoznata ruta preusmerava na dashboard, koji zatim zahteva autentifikaci
 
 ## 3. Sesija
 
-AuthService čuva `lb_token` i `lb_user` u localStorage i inicijalizuje signale iz tog skladišta. `currentUser` i `token` su read-only signali za potrošače, dok `role`, `farmId` i `isLoggedIn` predstavljaju izvedene vrednosti.
+AuthService čuva `lb_token` i `lb_user` u localStorage i inicijalizuje signale iz tog skladišta. `currentUser` i `token` su read-only signali za potrošače, dok `role`, `businessId` i `isLoggedIn` predstavljaju izvedene vrednosti.
 
-`isLoggedIn` proverava prisustvo tokena, ne njegov kriptografski potpis ili istek. `authGuard` na navigaciji poziva `refreshUser`, pa backend proverava token i vraća aktuelni profil. Novi token iz `/me` ili kreiranja farme se čuva pre naredne operacije. Logout briše lokalne vrednosti i navigira na login, bez serverske revocation liste.
+`isLoggedIn` proverava prisustvo tokena, ne njegov kriptografski potpis ili istek. `authGuard` na navigaciji poziva `refreshUser`, pa backend proverava token i vraća aktuelni profil. Novi token iz `/me` ili kreiranja firme se čuva pre naredne operacije. Logout briše lokalne vrednosti i navigira na login, bez serverske revocation liste.
 
 Interceptor dodaje Bearer token svakom zahtevu kroz ovaj HttpClient ako token postoji. Trenutni API adapteri koriste relativne putanje. Ako se ubuduće dodaju pozivi na druge domene, interceptor treba ograničiti na dozvoljeni API origin da ne prenosi token proizvoljnom odredištu.
 
@@ -63,11 +63,11 @@ Interceptor dodaje Bearer token svakom zahtevu kroz ovaj HttpClient ako token po
 | Permission | Uloge iz frontend modela |
 |---|---|
 | shop | Customer |
-| manageProducts, manageProduction, manageMaterials, manageOrders | FarmOwner, Worker |
-| deleteFarmData, manageFarm | FarmOwner |
-| analytics | FarmOwner, SystemAdmin |
-| viewFarm | FarmOwner, Worker |
-| viewMaterials | FarmOwner, Worker, SystemAdmin |
+| manageProducts, manageProduction, manageMaterials, manageOrders | BusinessOwner, Worker |
+| deleteBusinessData, manageBusiness | BusinessOwner |
+| analytics | BusinessOwner, SystemAdmin |
+| viewBusiness | BusinessOwner, Worker |
+| viewMaterials | BusinessOwner, Worker, SystemAdmin |
 
 `permissionGuard` sprečava navigaciju, a `CanDirective` uz effect dodaje ili uklanja deo template-a. Korenska navigacija ima dodatnu sopstvenu listu uloga, pa postoje dva mesta koja treba održavati usklađeno. Backend pravila nisu automatski izvedena iz ove matrice.
 

@@ -7,7 +7,7 @@ use crate::dtos::raw_material_request::RawMaterialRequest;
 use crate::services::raw_materials_service::RawMaterialsService;
 use common::{
     errors::AppResult,
-    middleware::{require_farm, require_role, AuthClaims},
+    middleware::{require_business, require_role, AuthClaims},
     response::{created, no_content},
 };
 
@@ -20,12 +20,12 @@ pub async fn add_material(
     Extension(_material_service): Extension<Arc<RawMaterialsService>>,
     Json(req): Json<RawMaterialRequest>,
 ) -> AppResult<Response> {
-    require_role(&_claims, &["FARM_OWNER", "WORKER"])?;
-    let _farm_id = require_farm(&_claims)?;
+    require_role(&_claims, &["BUSINESS_OWNER", "WORKER"])?;
+    let _business_id = require_business(&_claims)?;
     let token = extract_token(&headers);
     Ok(created(
         _material_service
-            .add(_batch_id, _farm_id, req, &token)
+            .add(_batch_id, _business_id, req, &token)
             .await?,
     ))
 }
@@ -37,10 +37,10 @@ pub async fn remove_material(
     Path((_batch_id, _raw_material_id)): Path<(Uuid, Uuid)>,
     Extension(_material_service): Extension<Arc<RawMaterialsService>>,
 ) -> AppResult<Response> {
-    require_role(&_claims, &["FARM_OWNER", "WORKER"])?;
-    let _farm_id = require_farm(&_claims)?;
+    require_role(&_claims, &["BUSINESS_OWNER", "WORKER"])?;
+    let _business_id = require_business(&_claims)?;
     _material_service
-        .remove(_batch_id, _raw_material_id, _farm_id)
+        .remove(_batch_id, _raw_material_id, _business_id)
         .await?;
     Ok(no_content())
 }

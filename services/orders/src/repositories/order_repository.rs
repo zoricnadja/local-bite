@@ -23,7 +23,7 @@ impl OrderRepository {
         sqlx::query_as!(
             Order,
             r#"
-            SELECT id, farm_id, customer_id, customer_name, customer_email,
+            SELECT id, business_id, customer_id, customer_name, customer_email,
                    status, total_price, notes, is_deleted, created_at, updated_at
             FROM   orders
             WHERE  id = $1 AND is_deleted = FALSE
@@ -35,7 +35,7 @@ impl OrderRepository {
         .ok_or_else(|| AppError::NotFound(format!("Order {} not found", id)))
     }
 
-    pub async fn find_all(&self, farm_id: Uuid, q: &ListOrdersQuery) -> AppResult<Vec<Order>> {
+    pub async fn find_all(&self, business_id: Uuid, q: &ListOrdersQuery) -> AppResult<Vec<Order>> {
         let offset = q.offset();
         let limit = q.limit();
         let status_f = q.status.as_deref().unwrap_or("");
@@ -44,10 +44,10 @@ impl OrderRepository {
         let items = sqlx::query_as!(
             Order,
             r#"
-            SELECT id, farm_id, customer_id, customer_name, customer_email,
+            SELECT id, business_id, customer_id, customer_name, customer_email,
                    status, total_price, notes, is_deleted, created_at, updated_at
             FROM   orders
-            WHERE  farm_id    = $1
+            WHERE  business_id    = $1
               AND  is_deleted = FALSE
               AND  ($2 = '' OR status ILIKE $2)
               AND  ($3 = '' OR customer_name  ILIKE '%' || $3 || '%'
@@ -55,7 +55,7 @@ impl OrderRepository {
             ORDER  BY created_at DESC
             LIMIT  $4 OFFSET $5
             "#,
-            farm_id,
+            business_id,
             status_f,
             search_f,
             limit,
@@ -71,27 +71,27 @@ impl OrderRepository {
         _id: Uuid,
         q: &ListOrdersQuery,
     ) -> AppResult<Vec<Order>> {
-        Ok(sqlx::query_as::<_,Order>("SELECT * FROM orders WHERE customer_id=$1 AND NOT is_deleted AND ($2::uuid IS NULL OR farm_id=$2) AND ($3='' OR status ILIKE $3) AND ($4='' OR customer_name ILIKE '%'||$4||'%' OR customer_email ILIKE '%'||$4||'%') ORDER BY created_at DESC,id LIMIT $5 OFFSET $6")
-            .bind(_id).bind(q.farm_id).bind(q.status.as_deref().unwrap_or("")).bind(q.search.as_deref().unwrap_or("")).bind(q.limit()).bind(q.offset()).fetch_all(&self.pool).await?)
+        Ok(sqlx::query_as::<_,Order>("SELECT * FROM orders WHERE customer_id=$1 AND NOT is_deleted AND ($2::uuid IS NULL OR business_id=$2) AND ($3='' OR status ILIKE $3) AND ($4='' OR customer_name ILIKE '%'||$4||'%' OR customer_email ILIKE '%'||$4||'%') ORDER BY created_at DESC,id LIMIT $5 OFFSET $6")
+            .bind(_id).bind(q.business_id).bind(q.status.as_deref().unwrap_or("")).bind(q.search.as_deref().unwrap_or("")).bind(q.limit()).bind(q.offset()).fetch_all(&self.pool).await?)
     }
     pub async fn count_by_user(&self,id:Uuid,q:&ListOrdersQuery)->AppResult<i64> {
-        Ok(sqlx::query_scalar("SELECT count(*) FROM orders WHERE customer_id=$1 AND NOT is_deleted AND ($2::uuid IS NULL OR farm_id=$2) AND ($3='' OR status ILIKE $3) AND ($4='' OR customer_name ILIKE '%'||$4||'%' OR customer_email ILIKE '%'||$4||'%')")
-            .bind(id).bind(q.farm_id).bind(q.status.as_deref().unwrap_or("")).bind(q.search.as_deref().unwrap_or("")).fetch_one(&self.pool).await?)
+        Ok(sqlx::query_scalar("SELECT count(*) FROM orders WHERE customer_id=$1 AND NOT is_deleted AND ($2::uuid IS NULL OR business_id=$2) AND ($3='' OR status ILIKE $3) AND ($4='' OR customer_name ILIKE '%'||$4||'%' OR customer_email ILIKE '%'||$4||'%')")
+            .bind(id).bind(q.business_id).bind(q.status.as_deref().unwrap_or("")).bind(q.search.as_deref().unwrap_or("")).fetch_one(&self.pool).await?)
     }
-    pub async fn count(&self, farm_id: Uuid, q: &ListOrdersQuery) -> AppResult<i64> {
+    pub async fn count(&self, business_id: Uuid, q: &ListOrdersQuery) -> AppResult<i64> {
         let status_f = q.status.as_deref().unwrap_or("");
         let search_f = q.search.as_deref().unwrap_or("");
 
         let count = sqlx::query_scalar!(
             r#"
             SELECT COUNT(*) FROM orders
-            WHERE  farm_id    = $1
+            WHERE  business_id    = $1
               AND  is_deleted = FALSE
               AND  ($2 = '' OR status ILIKE $2)
               AND  ($3 = '' OR customer_name  ILIKE '%' || $3 || '%'
                             OR customer_email ILIKE '%' || $3 || '%')
             "#,
-            farm_id,
+            business_id,
             status_f,
             search_f
         )
@@ -107,7 +107,7 @@ impl OrderRepository {
     pub async fn insert(
         &self,
         tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
-        farm_id: Uuid,
+        business_id: Uuid,
         customer_id: Uuid,
         customer_name: Option<&str>,
         customer_email: String,
@@ -118,13 +118,13 @@ impl OrderRepository {
             Order,
             r#"
             INSERT INTO orders
-                (id, farm_id, customer_id, customer_name, customer_email, notes, total_price)
+                (id, business_id, customer_id, customer_name, customer_email, notes, total_price)
             VALUES ($1, $2, $3, $4, $5, $6, $7)
-            RETURNING id, farm_id, customer_id, customer_name, customer_email,
+            RETURNING id, business_id, customer_id, customer_name, customer_email,
                       status, total_price, notes, is_deleted, created_at, updated_at
             "#,
             Uuid::new_v4(),
-            farm_id,
+            business_id,
             customer_id,
             customer_name,
             customer_email,
@@ -143,18 +143,18 @@ impl OrderRepository {
 
     // ── Analytics ─────────────────────────────────────────────────────────────
 
-    pub async fn total_revenue(&self, farm_id: Uuid, from: &str, to: &str) -> AppResult<f64> {
+    pub async fn total_revenue(&self, business_id: Uuid, from: &str, to: &str) -> AppResult<f64> {
         let val = sqlx::query_scalar!(
             r#"
             SELECT COALESCE(SUM(total_price), 0)
             FROM   orders
-            WHERE  farm_id    = $1
+            WHERE  business_id    = $1
               AND  is_deleted = FALSE
               AND  status     = 'DELIVERED'
               AND  ($2 = '' OR created_at::date >= $2::date)
               AND  ($3 = '' OR created_at::date <= $3::date)
             "#,
-            farm_id,
+            business_id,
             from,
             to
         )
@@ -165,16 +165,16 @@ impl OrderRepository {
         Ok(bigdecimal_to_f64(&val))
     }
 
-    pub async fn total_orders(&self, farm_id: Uuid, from: &str, to: &str) -> AppResult<i64> {
+    pub async fn total_orders(&self, business_id: Uuid, from: &str, to: &str) -> AppResult<i64> {
         let count = sqlx::query_scalar!(
             r#"
             SELECT COUNT(*) FROM orders
-            WHERE  farm_id    = $1
+            WHERE  business_id    = $1
               AND  is_deleted = FALSE
               AND  ($2 = '' OR created_at::date >= $2::date)
               AND  ($3 = '' OR created_at::date <= $3::date)
             "#,
-            farm_id,
+            business_id,
             from,
             to
         )
@@ -187,7 +187,7 @@ impl OrderRepository {
 
     pub async fn orders_by_status(
         &self,
-        farm_id: Uuid,
+        business_id: Uuid,
         from: &str,
         to: &str,
     ) -> AppResult<Vec<StatusCount>> {
@@ -196,13 +196,13 @@ impl OrderRepository {
             r#"
             SELECT status, COUNT(*) AS "count!"
             FROM   orders
-            WHERE  farm_id = $1 AND is_deleted = FALSE
+            WHERE  business_id = $1 AND is_deleted = FALSE
             AND  ($2 = '' OR created_at::date >= $2::date)
             AND  ($3 = '' OR created_at::date <= $3::date)
             GROUP  BY status
             ORDER  BY status
             "#,
-            farm_id,
+            business_id,
             from,
             to
         )
@@ -214,7 +214,7 @@ impl OrderRepository {
 
     pub async fn revenue_by_month(
         &self,
-        farm_id: Uuid,
+        business_id: Uuid,
         from: &str,
         to: &str,
     ) -> AppResult<Vec<(String, f64, i64)>> {
@@ -225,7 +225,7 @@ impl OrderRepository {
                 COALESCE(SUM(total_price), 0)  AS "revenue!",
                 COUNT(*)                        AS "orders!"
             FROM   orders
-            WHERE  farm_id    = $1
+            WHERE  business_id    = $1
               AND  is_deleted = FALSE
               AND  status     = 'DELIVERED'
               AND  ($2 = '' OR created_at::date >= $2::date)
@@ -233,7 +233,7 @@ impl OrderRepository {
             GROUP  BY TO_CHAR(created_at, 'YYYY-MM')
             ORDER  BY 1 ASC
             "#,
-            farm_id,
+            business_id,
             from,
             to
         )

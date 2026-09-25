@@ -1,0 +1,86 @@
+from pathlib import Path
+common=r'''-- Preserve applied migration checksums; migrate existing installations in place.
+DO $$
+DECLARE c RECORD;
+BEGIN
+ FOR c IN SELECT table_name FROM information_schema.columns WHERE table_schema=current_schema() AND column_name='farm_id' LOOP
+  EXECUTE format('ALTER TABLE %I RENAME COLUMN farm_id TO business_id',c.table_name);
+ END LOOP;
+END $$;
+
+-- Convert only structural keys and role values, never user-entered text.
+CREATE FUNCTION migrate_business_json(value JSONB) RETURNS JSONB LANGUAGE plpgsql IMMUTABLE AS $$
+DECLARE result JSONB; k TEXT; v JSONB; new_key TEXT;
+BEGIN
+ IF jsonb_typeof(value)='object' THEN
+  result='{}'::jsonb;
+  FOR k,v IN SELECT * FROM jsonb_each(value) LOOP
+   new_key=CASE k WHEN 'farm_id' THEN 'business_id' WHEN 'farm_name' THEN 'business_name' WHEN 'farm' THEN 'business' ELSE k END;
+   IF k='role' AND v='"FARM_OWNER"'::jsonb THEN v='"BUSINESS_OWNER"'::jsonb;
+   ELSIF k='role' AND v='"FarmOwner"'::jsonb THEN v='"BusinessOwner"'::jsonb;
+   ELSE v=migrate_business_json(v); END IF;
+   result=result || jsonb_build_object(new_key,v);
+  END LOOP;
+  RETURN result;
+ ELSIF jsonb_typeof(value)='array' THEN
+  SELECT coalesce(jsonb_agg(migrate_business_json(item) ORDER BY ordinal),'[]'::jsonb) INTO result FROM jsonb_array_elements(value) WITH ORDINALITY AS a(item,ordinal);
+  RETURN result;
+ END IF;
+ RETURN value;
+END $$;
+
+DO $$
+DECLARE c RECORD;
+BEGIN
+ FOR c IN SELECT table_name,column_name FROM information_schema.columns WHERE table_schema=current_schema() AND data_type='jsonb' LOOP
+  EXECUTE format('UPDATE %I SET %I=migrate_business_json(%I) WHERE %I IS DISTINCT FROM migrate_business_json(%I)',c.table_name,c.column_name,c.column_name,c.column_name,c.column_name);
+ END LOOP;
+END $$;
+DROP FUNCTION migrate_business_json(JSONB);
+
+-- Rename catalog objects without rebuilding data or changing their semantics.
+DO $$
+DECLARE obj RECORD; new_name TEXT;
+BEGIN
+ FOR obj IN SELECT conrelid::regclass AS tbl,conname FROM pg_constraint WHERE connamespace=current_schema()::regnamespace AND conname LIKE '%farm%' LOOP
+  new_name=replace(replace(obj.conname,'farms','businesses'),'farm','business');
+  EXECUTE format('ALTER TABLE %s RENAME CONSTRAINT %I TO %I',obj.tbl,obj.conname,new_name);
+ END LOOP;
+ FOR obj IN SELECT indexname FROM pg_indexes WHERE schemaname=current_schema() AND indexname LIKE '%farm%' LOOP
+  new_name=replace(replace(obj.indexname,'farms','businesses'),'farm','business');
+  EXECUTE format('ALTER INDEX %I RENAME TO %I',obj.indexname,new_name);
+ END LOOP;
+END $$;
+'''
+payload=r'''
+CREATE OR REPLACE FUNCTION integration_payload(kind TEXT, row_data JSONB) RETURNS JSONB AS $$
+ SELECT CASE
+ WHEN kind='users' THEN jsonb_build_object('id',row_data->'id','role',row_data->'role','business_id',row_data->'business_id')
+ WHEN kind='businesses' THEN jsonb_build_object('id',row_data->'id','name',row_data->'name','owner_id',row_data->'owner_id')
+ WHEN kind='orders' THEN row_data - ARRAY['customer_email','customer_name','notes']
+ ELSE row_data - ARRAY['notes'] END;
+$$ LANGUAGE SQL IMMUTABLE;
+UPDATE integration_outbox SET entity_type='businesses' WHERE entity_type='farms';
+'''
+for svc in ['auth','raw-materials','productions','products','orders','read-models']:
+ # Repair stored trigger bodies before writes can invoke them with renamed columns.
+ prefix=''
+ if svc=='auth':prefix='ALTER TABLE farms RENAME TO businesses;\nALTER TRIGGER farms_updated_at ON businesses RENAME TO businesses_updated_at;\n'
+ if svc=='productions':
+  text=(Path('services')/svc/'migrations/20260919000000_integrity.sql').read_text()
+  for name in ['release_removed_material','protect_batch_and_release']:
+   start=text.index('CREATE FUNCTION '+name)
+   end=text.index('$$ LANGUAGE plpgsql;',start)+len('$$ LANGUAGE plpgsql;')
+   prefix+=text[start:end].replace('CREATE FUNCTION','CREATE OR REPLACE FUNCTION').replace('farm','business')+'\n'
+ suffix=''
+ if svc=='auth':suffix="UPDATE users SET role='BUSINESS_OWNER' WHERE role='FARM_OWNER';\n"
+ if svc=='read-models':
+  suffix="UPDATE projection_entities SET entity_type='businesses' WHERE entity_type='farms';\nDROP INDEX projection_business;\nCREATE INDEX projection_business ON projection_entities(entity_type,(data->>'business_id')) WHERE NOT deleted;\n"
+ content=prefix+(payload if svc!='read-models' else '')+common+suffix
+ (Path('services')/svc/'migrations/20260925000000_business_terminology.sql').write_text(content,encoding='utf-8')
+# The catalog regression test builds only an isolated historical fixture, then uses current names.
+p=Path('scripts/test-production-model.ps1');s=p.read_text(encoding='utf-8')
+s=s.replace('"CREATE TABLE $table (business_id UUID, $column TEXT);`n"','"CREATE TABLE $table (farm_id UUID, $column TEXT);`n"')
+s=s.replace('    $sql += $catalogFixture','    $sql += "ALTER TABLE $table RENAME COLUMN farm_id TO business_id; ALTER TABLE type_catalog RENAME COLUMN farm_id TO business_id;`n"\n    $sql += $catalogFixture')
+p.write_text(s,encoding='utf-8')
+print('Six forward migrations created.')

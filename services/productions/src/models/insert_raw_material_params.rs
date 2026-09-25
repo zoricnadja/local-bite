@@ -4,7 +4,7 @@ use uuid::Uuid;
 pub struct InsertRawMaterialParams {
     pub id: Uuid,
     pub batch_id: Uuid,
-    pub farm_id: Uuid,
+    pub business_id: Uuid,
     pub raw_material_id: Uuid,
     pub raw_material_name: String,
     pub material_type: String,

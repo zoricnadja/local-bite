@@ -19,7 +19,7 @@ impl BatchRepository {
 
     pub async fn list(
         &self,
-        farm_id: Uuid,
+        business_id: Uuid,
         q: &ListQuery,
     ) -> AppResult<(Vec<ProductionBatch>, i64)> {
         let offset = q.offset();
@@ -28,39 +28,39 @@ impl BatchRepository {
         let search_f = q.search.as_deref().unwrap_or("");
 
         let items = sqlx::query_as::<_, ProductionBatch>(r#"
-            SELECT id, farm_id, name, start_date, end_date,
+            SELECT id, business_id, name, start_date, end_date,
                    status, notes, is_deleted, created_at, updated_at, outputs, output_name, output_type, output_unit, output_quantity, output_expiry_date
             FROM   production_batches
-            WHERE  farm_id    = $1
+            WHERE  business_id    = $1
               AND  is_deleted = FALSE
               AND  ($2 = '' OR status       ILIKE $2)
               AND  ($3 = '' OR name         ILIKE '%' || $3 || '%')
             ORDER  BY created_at DESC
             LIMIT  $4 OFFSET $5
-            "#).bind(farm_id).bind(status_f).bind(search_f).bind(limit).bind(offset)
+            "#).bind(business_id).bind(status_f).bind(search_f).bind(limit).bind(offset)
 .fetch_all(&self.pool)
         .await?;
 
         let total: i64 = sqlx::query_scalar::<_, i64>(
             r#"
             SELECT COUNT(*) FROM production_batches
-            WHERE  farm_id = $1 AND is_deleted = FALSE
+            WHERE  business_id = $1 AND is_deleted = FALSE
               AND  ($2 = '' OR status       ILIKE $2)
               AND  ($3 = '' OR name         ILIKE '%' || $3 || '%')
-            "#).bind(farm_id).bind(status_f).bind(search_f)
+            "#).bind(business_id).bind(status_f).bind(search_f)
         .fetch_one(&self.pool)
         .await?;
 
         Ok((items, total))
     }
 
-    pub async fn find_by_id_and_farm(&self, id: Uuid, farm_id: Uuid) -> AppResult<ProductionBatch> {
+    pub async fn find_by_id_and_business(&self, id: Uuid, business_id: Uuid) -> AppResult<ProductionBatch> {
         sqlx::query_as::<_, ProductionBatch>(r#"
-            SELECT id, farm_id, name, start_date, end_date,
+            SELECT id, business_id, name, start_date, end_date,
                    status, notes, is_deleted, created_at, updated_at, outputs, output_name, output_type, output_unit, output_quantity, output_expiry_date
             FROM   production_batches
-            WHERE  id = $1 AND farm_id = $2 AND is_deleted = FALSE
-            "#).bind(id).bind(farm_id)
+            WHERE  id = $1 AND business_id = $2 AND is_deleted = FALSE
+            "#).bind(id).bind(business_id)
 .fetch_optional(&self.pool)
         .await?
         .ok_or_else(|| AppError::NotFound(format!("Batch {} not found", id)))
@@ -73,11 +73,11 @@ impl BatchRepository {
     ) -> AppResult<ProductionBatch> {
         Ok(sqlx::query_as::<_, ProductionBatch>(r#"
             INSERT INTO production_batches
-                (id, farm_id, name, start_date, end_date, notes)
+                (id, business_id, name, start_date, end_date, notes)
             VALUES ($1, $2, $3, $4, $5, $6)
-            RETURNING id, farm_id, name, start_date, end_date,
+            RETURNING id, business_id, name, start_date, end_date,
                       status, notes, is_deleted, created_at, updated_at, outputs, output_name, output_type, output_unit, output_quantity, output_expiry_date
-            "#).bind(p.id).bind(p.farm_id).bind(p.name).bind(p.start_date).bind(p.end_date).bind(p.notes.as_deref())
+            "#).bind(p.id).bind(p.business_id).bind(p.name).bind(p.start_date).bind(p.end_date).bind(p.notes.as_deref())
 .fetch_one(&mut **tx)
         .await?)
     }
@@ -85,7 +85,7 @@ impl BatchRepository {
     pub async fn update(
         &self,
         id: Uuid,
-        farm_id: Uuid,
+        business_id: Uuid,
         p: UpdateProductionParams,
         expected_status: &str,
     ) -> AppResult<ProductionBatch> {
@@ -96,19 +96,19 @@ impl BatchRepository {
                 end_date     = $3,
                 notes        = $4,
                 status       = $5, output_name=$8, output_type=$9, output_unit=$10, output_quantity=$11, output_expiry_date=$12, outputs=$14
-            WHERE id = $6 AND farm_id = $7 AND is_deleted = FALSE AND status=$13
-            RETURNING id, farm_id, name, start_date, end_date,
+            WHERE id = $6 AND business_id = $7 AND is_deleted = FALSE AND status=$13
+            RETURNING id, business_id, name, start_date, end_date,
                       status, notes, is_deleted, created_at, updated_at, outputs, output_name, output_type, output_unit, output_quantity, output_expiry_date
-            "#).bind(p.name).bind(p.start_date).bind(p.end_date).bind(p.notes.as_deref()).bind(p.status).bind(id).bind(farm_id).bind(p.output_name).bind(p.output_type).bind(p.output_unit).bind(p.output_quantity).bind(p.output_expiry_date).bind(expected_status).bind(p.outputs)
+            "#).bind(p.name).bind(p.start_date).bind(p.end_date).bind(p.notes.as_deref()).bind(p.status).bind(id).bind(business_id).bind(p.output_name).bind(p.output_type).bind(p.output_unit).bind(p.output_quantity).bind(p.output_expiry_date).bind(expected_status).bind(p.outputs)
 .fetch_one(&self.pool)
         .await?)
     }
 
-    pub async fn soft_delete(&self, id: Uuid, farm_id: Uuid) -> AppResult<u64> {
+    pub async fn soft_delete(&self, id: Uuid, business_id: Uuid) -> AppResult<u64> {
         Ok(sqlx::query!(
-            "UPDATE production_batches SET is_deleted = TRUE WHERE id = $1 AND farm_id = $2",
+            "UPDATE production_batches SET is_deleted = TRUE WHERE id = $1 AND business_id = $2",
             id,
-            farm_id
+            business_id
         )
         .execute(&self.pool)
         .await?

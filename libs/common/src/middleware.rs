@@ -35,11 +35,11 @@ where
     }
 }
 
-/// Helper — assert the caller belongs to a specific farm or is SYSTEM_ADMIN.
-pub fn require_farm(claims: &Claims) -> Result<uuid::Uuid, AppError> {
+/// Helper — assert the caller belongs to a specific business or is SYSTEM_ADMIN.
+pub fn require_business(claims: &Claims) -> Result<uuid::Uuid, AppError> {
     claims
-        .farm_id
-        .ok_or_else(|| AppError::Forbidden("No farm associated with this account".into()))
+        .business_id
+        .ok_or_else(|| AppError::Forbidden("No business associated with this account".into()))
 }
 
 /// Asserts role is one of the allowed values.

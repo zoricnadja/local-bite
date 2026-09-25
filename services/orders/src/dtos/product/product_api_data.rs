@@ -11,5 +11,5 @@ pub struct ProductApiData {
 
     pub unit: String,
     pub is_active: bool,
-    pub farm_id: Option<Uuid>,
+    pub business_id: Option<Uuid>,
 }
